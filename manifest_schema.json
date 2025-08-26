@@ -167,11 +167,31 @@
       "title": "ModManifest",
       "type": "object"
     },
+    "ModinthChannel": {
+      "enum": [
+        "release",
+        "beta",
+        "alpha"
+      ],
+      "title": "ModinthChannel",
+      "type": "string"
+    },
     "ModrinthProvider": {
       "properties": {
         "project_id": {
           "title": "Project Id",
           "type": "string"
+        },
+        "channel": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModinthChannel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "type": {
           "const": "modrinth",

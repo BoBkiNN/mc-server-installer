@@ -2,13 +2,20 @@ from pydantic import BaseModel, field_validator, Field, HttpUrl
 from typing import Annotated, Union, Literal
 import yaml
 from pathlib import Path
+from enum import Enum
 
+class ModinthChannel(Enum):
+    RELEASE = "release"
+    BETA = "beta"
+    ALPHA = "alpha"
 
 class AssetProvider(BaseModel):
     pass # TODO fallback providers
 
 class ModrinthProvider(AssetProvider):
     project_id: str
+    channel: ModinthChannel | None = None
+    """If not set, then channel is ignored"""
     type: Literal["modrinth"]
 
 class GithubReleasesProvider(AssetProvider):
