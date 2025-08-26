@@ -72,6 +72,22 @@
           "title": "Branch",
           "type": "string"
         },
+        "workflow": {
+          "title": "Workflow",
+          "type": "string"
+        },
+        "name_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Pattern"
+        },
         "type": {
           "const": "github-actions",
           "enum": [
@@ -83,6 +99,7 @@
       },
       "required": [
         "repository",
+        "workflow",
         "type"
       ],
       "title": "GithubActionsProvider",

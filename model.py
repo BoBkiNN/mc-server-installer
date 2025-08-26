@@ -19,6 +19,9 @@ class GithubActionsProvider(AssetProvider):
     """Downloads artifact from github actions"""
     repository: str
     branch: str = "master"
+    workflow: str
+    name_pattern: str | None = None
+    """RegEx for artifact name. All artifacts is downloaded if not set"""
     type: Literal["github-actions"]
 
 class DirectUrlProvider(AssetProvider):
