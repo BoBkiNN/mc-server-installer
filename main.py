@@ -159,29 +159,23 @@ class Installer:
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
-    def install_mod(self, mod: ModManifest):
-        if isinstance(mod.provider, GithubReleasesProvider):
-            options = DownloadOptions(mod.version, self.mods_folder,
-                                      SimpleJarSelector())
-            self.assets.download_github_release(mod.provider, options)
-        elif isinstance(mod.provider, GithubActionsProvider):
-            options = DownloadOptions(mod.version, self.mods_folder,
-                                      SimpleJarSelector())
-            self.assets.download_github_actions(mod.provider, options)
+    def install(self, provider: AssetProvider, options: DownloadOptions):
+        if isinstance(provider, GithubReleasesProvider):
+            self.assets.download_github_release(provider, options)
+        elif isinstance(provider, GithubActionsProvider):
+            self.assets.download_github_actions(provider, options)
         else:
-            raise ValueError(f"Unsupported provider {mod.provider.type}")
+            raise ValueError(f"Unsupported provider {type(provider)}")
+
+    def install_mod(self, mod: ModManifest):
+        options = DownloadOptions(mod.version, self.mods_folder,
+                                  SimpleJarSelector())
+        self.install(mod.provider, options)
     
     def install_plugin(self, plugin: PluginManifest):
-        if isinstance(plugin.provider, GithubReleasesProvider):
-            options = DownloadOptions(plugin.version, self.plugins_folder, 
-                                      SimpleJarSelector())
-            self.assets.download_github_release(plugin.provider, options)
-        elif isinstance(plugin.provider, GithubActionsProvider):
-            options = DownloadOptions(plugin.version, self.plugins_folder,
-                                      SimpleJarSelector())
-            self.assets.download_github_actions(plugin.provider, options)
-        else:
-            raise ValueError(f"Unsupported provider {plugin.provider.type}")
+        options = DownloadOptions(plugin.version, self.plugins_folder,
+                                  SimpleJarSelector())
+        self.install(plugin.provider, options)
     
     def install_mods(self):
         self.mods_folder.mkdir(parents=True, exist_ok=True)
