@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "DatapackManifest": {
+      "properties": {
+        "provider": {
+          "discriminator": {
+            "mapping": {
+              "github": "#/$defs/GithubReleasesProvider",
+              "modrinth": "#/$defs/ModrinthProvider",
+              "url": "#/$defs/DirectUrlProvider"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ModrinthProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubReleasesProvider"
+            },
+            {
+              "$ref": "#/$defs/DirectUrlProvider"
+            }
+          ],
+          "title": "Provider"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "title": "DatapackManifest",
+      "type": "object"
+    },
+    "DirectUrlProvider": {
+      "properties": {
+        "url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "type": {
+          "const": "url",
+          "enum": [
+            "url"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "type"
+      ],
+      "title": "DirectUrlProvider",
+      "type": "object"
+    },
+    "GithubReleasesProvider": {
+      "properties": {
+        "repository": {
+          "title": "Repository",
+          "type": "string"
+        },
+        "type": {
+          "const": "github",
+          "enum": [
+            "github"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "type"
+      ],
+      "title": "GithubReleasesProvider",
+      "type": "object"
+    },
+    "ModManifest": {
+      "properties": {
+        "provider": {
+          "discriminator": {
+            "mapping": {
+              "github": "#/$defs/GithubReleasesProvider",
+              "modrinth": "#/$defs/ModrinthProvider",
+              "url": "#/$defs/DirectUrlProvider"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ModrinthProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubReleasesProvider"
+            },
+            {
+              "$ref": "#/$defs/DirectUrlProvider"
+            }
+          ],
+          "title": "Provider"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "version"
+      ],
+      "title": "ModManifest",
+      "type": "object"
+    },
+    "ModrinthProvider": {
+      "properties": {
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "modrinth",
+          "enum": [
+            "modrinth"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "type"
+      ],
+      "title": "ModrinthProvider",
+      "type": "object"
+    },
+    "PluginManifest": {
+      "properties": {
+        "provider": {
+          "discriminator": {
+            "mapping": {
+              "github": "#/$defs/GithubReleasesProvider",
+              "modrinth": "#/$defs/ModrinthProvider",
+              "url": "#/$defs/DirectUrlProvider"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ModrinthProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubReleasesProvider"
+            },
+            {
+              "$ref": "#/$defs/DirectUrlProvider"
+            }
+          ],
+          "title": "Provider"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "version"
+      ],
+      "title": "PluginManifest",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "mc_version": {
+      "title": "Mc Version",
+      "type": "string"
+    },
+    "paper_build": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "title": "Paper Build"
+    },
+    "mods": {
+      "items": {
+        "$ref": "#/$defs/ModManifest"
+      },
+      "title": "Mods",
+      "type": "array"
+    },
+    "plugins": {
+      "items": {
+        "$ref": "#/$defs/PluginManifest"
+      },
+      "title": "Plugins",
+      "type": "array"
+    },
+    "datapacks": {
+      "items": {
+        "$ref": "#/$defs/DatapackManifest"
+      },
+      "title": "Datapacks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "mc_version",
+    "paper_build",
+    "mods",
+    "plugins",
+    "datapacks"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}
