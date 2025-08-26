@@ -6,6 +6,7 @@
           "discriminator": {
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
+              "github-actions": "#/$defs/GithubActionsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -20,6 +21,9 @@
             },
             {
               "$ref": "#/$defs/DirectUrlProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubActionsProvider"
             }
           ],
           "title": "Provider"
@@ -56,6 +60,34 @@
       "title": "DirectUrlProvider",
       "type": "object"
     },
+    "GithubActionsProvider": {
+      "description": "Downloads artifact from github actions",
+      "properties": {
+        "repository": {
+          "title": "Repository",
+          "type": "string"
+        },
+        "branch": {
+          "default": "master",
+          "title": "Branch",
+          "type": "string"
+        },
+        "type": {
+          "const": "github-actions",
+          "enum": [
+            "github-actions"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "type"
+      ],
+      "title": "GithubActionsProvider",
+      "type": "object"
+    },
     "GithubReleasesProvider": {
       "properties": {
         "repository": {
@@ -84,6 +116,7 @@
           "discriminator": {
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
+              "github-actions": "#/$defs/GithubActionsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -98,6 +131,9 @@
             },
             {
               "$ref": "#/$defs/DirectUrlProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubActionsProvider"
             }
           ],
           "title": "Provider"
@@ -142,6 +178,7 @@
           "discriminator": {
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
+              "github-actions": "#/$defs/GithubActionsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -156,6 +193,9 @@
             },
             {
               "$ref": "#/$defs/DirectUrlProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubActionsProvider"
             }
           ],
           "title": "Provider"

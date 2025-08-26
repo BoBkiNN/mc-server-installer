@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 class AssetProvider(BaseModel):
-    pass
+    pass # TODO fallback providers
 
 class ModrinthProvider(AssetProvider):
     project_id: str
@@ -15,12 +15,19 @@ class GithubReleasesProvider(AssetProvider):
     repository: str
     type: Literal["github"]
 
+class GithubActionsProvider(AssetProvider):
+    """Downloads artifact from github actions"""
+    repository: str
+    branch: str = "master"
+    type: Literal["github-actions"]
+
 class DirectUrlProvider(AssetProvider):
     url: HttpUrl
     type: Literal["url"]
 
 Provider = Annotated[
-    Union[ModrinthProvider, GithubReleasesProvider, DirectUrlProvider],
+    Union[ModrinthProvider, GithubReleasesProvider,
+          DirectUrlProvider, GithubActionsProvider],
     Field(discriminator="type"),
 ]
 
