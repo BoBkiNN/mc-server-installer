@@ -4,7 +4,14 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
+        {
+            "name": "main.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "../main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/run"
+        },
         {
             "name": "Generate schema",
             "type": "debugpy",

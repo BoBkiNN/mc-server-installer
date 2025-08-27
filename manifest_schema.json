@@ -27,6 +27,18 @@
             }
           ],
           "title": "Provider"
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Id"
         }
       },
       "required": [
@@ -157,6 +169,18 @@
           ],
           "title": "Provider"
         },
+        "asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Id"
+        },
         "version": {
           "title": "Version",
           "type": "string"
@@ -204,6 +228,11 @@
           "default": null,
           "title": "Version Name Pattern"
         },
+        "ignore_game_version": {
+          "default": true,
+          "title": "Ignore Game Version",
+          "type": "boolean"
+        },
         "type": {
           "const": "modrinth",
           "enum": [
@@ -247,6 +276,18 @@
             }
           ],
           "title": "Provider"
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Id"
         },
         "version": {
           "title": "Version",

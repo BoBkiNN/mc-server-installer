@@ -55,16 +55,19 @@ class CacheStore:
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
         removed = self.cache.assets.pop(id, None)
         if removed:
+            for p in removed.files:
+                os.remove(self.folder / p)
             self.logger.info(f"💥 Invalidated asset {id}")
             self.dirty = True
     
-    def check_asset(self, asset: str | AssetManifest):
+    def check_asset(self, asset: str | AssetManifest, hash: str | None):
         """Returns True if cache is valid"""
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
         entry = self.cache.assets.get(id, None)
         if not entry:
             return False
-        if entry.is_valid(self.folder):
+        self.logger.debug(f"Checking cached asset {entry.asset_id}({entry.asset_hash}) with actual {hash}")
+        if entry.is_valid(self.folder, hash):
             return entry
         else:
             self.invalidate_asset(id)
@@ -74,10 +77,11 @@ class CacheStore:
         self.cache.assets[asset.asset_id] = asset
         self.dirty = True
     
-    def check_all_assets(self):
+    def check_all_assets(self, manifest: Manifest):
         c = 0
         for asset in list(self.cache.assets):
-            if not self.check_asset(asset):
+            mf = manifest.get_asset(asset)
+            if not self.check_asset(asset, mf.stable_hash() if mf else None):
                 c += 1
         if c:
             self.logger.info(f"⚠  {c} asset(s) were invalidated")
@@ -103,7 +107,8 @@ class DownloadOptions:
     selector: FileSelector
 
 class AssetInstaller:
-    def __init__(self, auth: Authorizaition, temp_folder: Path, logger: logging.Logger) -> None:
+    def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger) -> None:
+        self.game_version = manifest.mc_version
         self.auth = auth
         self.temp_folder = temp_folder
         self.logger = logger
@@ -244,7 +249,8 @@ class AssetInstaller:
         if not project:
             raise ValueError(f"Unknown project {provider.project_id}")
         self.debug(f"Getting project versions..")
-        vers = self.modrinth.get_versions(provider.project_id, ["spigot", "paper"])
+        game_versions = [] if provider.ignore_game_version else [self.game_version]
+        vers = self.modrinth.get_versions(provider.project_id, ["spigot", "paper"], game_versions)
         if not vers:
             raise ValueError(f"Cannot find versions for project {provider.project_id}")
         name_pattern = re.compile(provider.version_name_pattern) if provider.version_name_pattern else None
@@ -299,7 +305,7 @@ class Installer:
         self.auth = auth
         self.logger = logging.getLogger("Installer")
         self.cache = CacheStore(self.folder / ".install_cache.json", True, self.folder)
-        self.assets = AssetInstaller(auth, self.folder / "tmp", self.logger)
+        self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
@@ -307,7 +313,8 @@ class Installer:
     def install(self, provider: AssetProvider, options: DownloadOptions) -> AssetInstallation:
         asset = options.asset
         asset_id = asset.resolve_asset_id()
-        cached = self.cache.check_asset(asset_id)
+        asset_hash = asset.stable_hash()
+        cached = self.cache.check_asset(asset_id, asset_hash)
         if cached:
             self.logger.info(f"⏩ Skipping {asset.type.value} {asset_id} as it already installed")
             return cached
@@ -324,7 +331,7 @@ class Installer:
             raise ValueError(f"Unsupported provider {type(provider)}")
         
         # TODO post-download steps here
-        result = AssetInstallation.create(asset_id, millis(), ls)
+        result = AssetInstallation.create(asset_id, asset_hash, millis(), ls)
         self.cache.store_asset(result)
         return result
 
@@ -416,7 +423,7 @@ def main(manifest: Path | None, github_token: str | None, debug: bool):
     mf = Manifest.load(mfp)
     installer = Installer(mf, Path(""), auth)
     installer.cache.load()
-    installer.cache.check_all_assets()
+    installer.cache.check_all_assets(installer.manifest)
     installer.install_mods()
     installer.install_plugins()
     installer.cache.save()

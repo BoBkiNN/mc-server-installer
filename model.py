@@ -4,10 +4,14 @@ import yaml, json5, json
 from pathlib import Path
 from modrinth import VersionType
 from enum import Enum
+import hashlib
 
 
 class AssetProvider(BaseModel):
      # TODO fallback providers
+
+    class Config:
+        frozen = True
     
     def create_asset_id(self) -> str:
         """Returns asset id without versions. Do not invokes any IO"""
@@ -22,6 +26,7 @@ class ModrinthProvider(AssetProvider):
     """If true, than version is consumed as version id"""
     version_name_pattern: str | None = None
     """RegEx for version name"""
+    ignore_game_version: bool = True
     type: Literal["modrinth"]
 
     def create_asset_id(self):
@@ -73,6 +78,10 @@ class AssetManifest(BaseModel):
 
     _asset_id: str | None = None  # cache
 
+    def stable_hash(self) -> str:
+        s = self.model_dump_json()
+        return hashlib.sha256(s.encode()).hexdigest()
+
     def resolve_asset_id(self) -> str:
         if self._asset_id:
             return self._asset_id
@@ -111,6 +120,9 @@ class Manifest(BaseModel):
     plugins: list[PluginManifest] = []
     datapacks: list[DatapackManifest] = []
 
+    class Config:
+        frozen = True
+
     @field_validator('paper_build')
     @classmethod
     def validate_paper_build(cls, v: str | int):
@@ -118,6 +130,12 @@ class Manifest(BaseModel):
             raise ValueError("paper_build must be number or 'latest'")
         return v
     
+    def get_asset(self, id: str):
+        ls = self.mods + self.plugins + self.datapacks
+        for mf in ls:
+            if mf.resolve_asset_id() == id:
+                return mf
+        return None
     
     @staticmethod
     def load(file: Path) -> "Manifest":
@@ -136,12 +154,17 @@ class Manifest(BaseModel):
     
 class AssetInstallation(BaseModel):
     asset_id: str
+    asset_hash: str
     update_time: int
     """UNIX epoch in millis"""
     files: list[Path]
     """List of files after downloading and installation (no temporary files)"""
 
-    def is_valid(self, folder: Path):
+    def is_valid(self, folder: Path, hash: str | None):
+        if hash is None: # asset removed from manifest
+            return False
+        if self.asset_hash != hash:
+            return False
         for file in self.files:
             path = folder / file
             if not path.is_file():
@@ -149,8 +172,8 @@ class AssetInstallation(BaseModel):
         return True
     
     @staticmethod
-    def create(asset_id: str, update_time: int, files: list[Path]) -> "AssetInstallation":
-        return AssetInstallation(asset_id=asset_id, update_time=update_time, files=files)
+    def create(asset_id: str, hash: str, update_time: int, files: list[Path]) -> "AssetInstallation":
+        return AssetInstallation(asset_id=asset_id, asset_hash=hash, update_time=update_time, files=files)
 
 class Cache(BaseModel):
     assets: dict[str, AssetInstallation] = {}

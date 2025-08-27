@@ -2,6 +2,7 @@ from enum import Enum
 from pydantic import BaseModel, ValidationError
 from requests import Session
 from typing import TypeVar
+from urllib.parse import urlencode
 
 class BuildInfo(BaseModel):
     comp_date: str
@@ -48,6 +49,9 @@ class Version(BaseModel):
 
     def get_primary(self):
         return next((f for f in self.files if f.primary), None)
+
+def strlist(ls: list[str]):
+    return "["+(",".join([f"\"{v}\"" for v in ls]))+"]"
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -112,12 +116,17 @@ class Modrinth:
     def get_project(self, id: str):
         return self._get(f"project/{id}", Project)
     
-    def get_versions(self, project: str | Project, loaders: list[str] = []):
+    def get_versions(self, project: str | Project, loaders: list[str] = [], 
+                     game_versions: list[str] = []):
         id = project.id if isinstance(project, Project) else project
         path = f"/project/{id}/version"
+        d = {}
         if loaders:
-            ls = "[" + (",".join(loaders))+"]"
-            path += "?loaders="+ls
+            d["loaders"] = strlist(loaders)
+        if game_versions:
+            d["game_versions"] = strlist(game_versions)
+        if d:
+            path += "?"+urlencode(d)
         return self._get_list(path, Version)
     
     def get_version(self, id: str):
