@@ -214,6 +214,7 @@ class AssetInstaller:
             session.headers["Accept"] = "application/octet-stream"
         self.download_file(session, url, out_path)
 
+    # TODO return some type of DownloadData instead of plain list
     def download_github_release(self, provider: GithubReleasesProvider, 
                                 options: DownloadOptions):
         self.debug(f"Getting repository {provider.repository}")
