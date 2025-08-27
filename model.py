@@ -1,10 +1,11 @@
-from pydantic import BaseModel, field_validator, Field, HttpUrl, ValidationError, PrivateAttr
+from pydantic import BaseModel, Field, HttpUrl, ValidationError
 from typing import Annotated, Union, Literal
 import yaml, json5, json
 from pathlib import Path
 from modrinth import VersionType
 from enum import Enum
 import hashlib
+from papermc_fill import Channel as PaperChannel
 
 
 class AssetProvider(BaseModel):
@@ -113,11 +114,36 @@ class DatapackManifest(AssetManifest):
     _type = AssetType.DATAPACK
 
 class CoreManifest(BaseModel):
-    pass
+    file_name: str | None = None
+    """Renames downloaded jar to this file name"""
+
+    def display_name(self) -> str:
+        ...
+
+    def hash_from_ver(self, mc_ver: str) -> str | None:
+        ...
+
+class PaperLatestBuild(Enum):
+    LATEST = "latest"
+    LATEST_STABLE = "latest_stable"
+
+    def __str__(self) -> str:
+        return self.value
 
 class PaperCoreManifest(CoreManifest):
     type: Literal["paper"]
-    build: Literal["latest"] | int
+    build: PaperLatestBuild | int
+    channels: list[PaperChannel] = []
+    """Channels to use when finding latest version. Empty means channel will be ignored"""
+
+    def hash_from_ver(self, mc_ver: str) -> str | None:
+        if not isinstance(self.build, int):
+            return None # we dont know version if manifest is set to latest
+        return hashlib.sha256(f"{mc_ver}/{self.build}".encode()).hexdigest()
+    
+    def display_name(self) -> str:
+        sf = "@"+str(self.channels) if self.channels else ""
+        return f"paper/{self.build}"+sf
 
 Core = Annotated[
     Union[PaperCoreManifest],
@@ -156,32 +182,57 @@ class Manifest(BaseModel):
             return Manifest.model_validate(d)
         except ValidationError as e:
             raise ValueError("Failed to load manifest") from e
-    
-class AssetInstallation(BaseModel):
-    asset_id: str
-    asset_hash: str
+
+class FilesInstallation(BaseModel):
     update_time: int
     """UNIX epoch in millis"""
     files: list[Path]
     """List of files after downloading and installation (no temporary files)"""
+
+    def check_files(self, folder: Path):
+        for file in self.files:
+            path = folder / file
+            if not path.is_file():
+                return False
+        return True
+
+class AssetInstallation(FilesInstallation):
+    asset_id: str
+    asset_hash: str
 
     def is_valid(self, folder: Path, hash: str | None):
         if hash is None: # asset removed from manifest
             return False
         if self.asset_hash != hash:
             return False
-        for file in self.files:
-            path = folder / file
-            if not path.is_file():
-                return False
-        return True
+        return self.check_files(folder)
     
     @staticmethod
     def create(asset_id: str, hash: str, update_time: int, files: list[Path]) -> "AssetInstallation":
         return AssetInstallation(asset_id=asset_id, asset_hash=hash, update_time=update_time, files=files)
 
+class CoreInstallation(FilesInstallation):
+    version_hash: str # used for latest checking
+    type: str
+
+    def display_name(self) -> str:
+        return f"{self.type}-({self.version_hash})"
+
+class PaperCoreInstallation(CoreInstallation):
+    build_number: int
+    type: str = "paper"
+
+    def display_name(self) -> str:
+        return f"paper-{self.build_number}"
+
 class Cache(BaseModel):
     assets: dict[str, AssetInstallation] = {}
+    core: CoreInstallation | None = None
+    mc_version: str = ""
+
+    @staticmethod
+    def create(mf: Manifest):
+        return Cache(mc_version=mf.mc_version)
 
     @staticmethod
     def load(file: Path):

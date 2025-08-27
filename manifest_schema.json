@@ -1,5 +1,15 @@
 {
   "$defs": {
+    "Channel": {
+      "enum": [
+        "ALPHA",
+        "BETA",
+        "STABLE",
+        "RECOMMENDED"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
     "DatapackManifest": {
       "properties": {
         "provider": {
@@ -251,6 +261,18 @@
     },
     "PaperCoreManifest": {
       "properties": {
+        "file_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Name"
+        },
         "type": {
           "const": "paper",
           "enum": [
@@ -262,17 +284,21 @@
         "build": {
           "anyOf": [
             {
-              "const": "latest",
-              "enum": [
-                "latest"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/PaperLatestBuild"
             },
             {
               "type": "integer"
             }
           ],
           "title": "Build"
+        },
+        "channels": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Channel"
+          },
+          "title": "Channels",
+          "type": "array"
         }
       },
       "required": [
@@ -281,6 +307,14 @@
       ],
       "title": "PaperCoreManifest",
       "type": "object"
+    },
+    "PaperLatestBuild": {
+      "enum": [
+        "latest",
+        "latest_stable"
+      ],
+      "title": "PaperLatestBuild",
+      "type": "string"
     },
     "PluginManifest": {
       "properties": {

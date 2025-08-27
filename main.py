@@ -14,14 +14,16 @@ from dataclasses import dataclass
 import re
 import modrinth
 import time
+import papermc_fill as papermc
 
 
 def millis():
     return int(time.time()*1000) 
 
 class CacheStore:
-    def __init__(self, file: Path, debug: bool, folder: Path) -> None:
-        self.cache = Cache()
+    def __init__(self, file: Path, mf: Manifest, debug: bool, folder: Path) -> None:
+        self.mf = mf
+        self.cache = Cache.create(mf)
         self.logger = logging.getLogger("Cache")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.file = file
@@ -37,7 +39,7 @@ class CacheStore:
         self.dirty = False
     
     def reset(self):
-        self.cache = Cache()
+        self.cache = Cache.create(self.mf)
         self.logger.debug("Cache reset.")
     
     def load(self):
@@ -50,6 +52,10 @@ class CacheStore:
         except Exception as e:
             self.logger.error("Exception loading stored cache. Resetting", exc_info=e)
             self.reset()
+            return
+        if self.cache.mc_version and self.cache.mc_version != self.mf.mc_version:
+            self.logger.info(f"Resetting cache due to changed minecraft version {self.cache.mc_version}->{self.mf.mc_version}")
+            self.reset()
     
     def invalidate_asset(self, asset: str | AssetManifest):
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
@@ -61,11 +67,11 @@ class CacheStore:
             self.dirty = True
     
     def check_asset(self, asset: str | AssetManifest, hash: str | None):
-        """Returns True if cache is valid"""
+        """Returns None if cache is invalid"""
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
         entry = self.cache.assets.get(id, None)
         if not entry:
-            return False
+            return None
         self.logger.debug(f"Checking cached asset {entry.asset_id}({entry.asset_hash}) with actual {hash}")
         if entry.is_valid(self.folder, hash):
             return entry
@@ -86,6 +92,36 @@ class CacheStore:
         if c:
             self.logger.info(f"⚠  {c} asset(s) were invalidated")
         
+    def invalidate_core(self):
+        p = self.cache.core
+        if p:
+            self.cache.core = None
+            self.dirty = True
+            self.logger.info("⚠  Core invalidated")
+    
+    def store_core(self, core: CoreInstallation):
+        self.cache.core = core
+        self.dirty = True
+    
+    def check_core(self, core: Core, mc_ver: str):
+        cached = self.cache.core
+        if not cached:
+            return None
+        if not cached.check_files(self.folder):
+            self.logger.debug("Invalidating core due to invalid files")
+            self.invalidate_core()
+            return None
+        if cached.type != core.type:
+            self.logger.debug(f"Invalidating core due to changed type {cached.type} -> {core.type}")
+            self.invalidate_core()
+            return None
+        vhash = core.hash_from_ver(mc_ver)
+        if vhash is not None and cached.version_hash != vhash:
+            # hash is provided and not matching
+            self.logger.debug(f"Invalidating core due to changed version hash {cached.version_hash} -> {vhash}")
+            self.invalidate_core()
+            return None
+        return cached
 
 
 class FileSelector(ABC):
@@ -304,10 +340,55 @@ class Installer:
         self.folder = server_folder
         self.auth = auth
         self.logger = logging.getLogger("Installer")
-        self.cache = CacheStore(self.folder / ".install_cache.json", True, self.folder)
+        self.cache = CacheStore(self.folder / ".install_cache.json", manifest, True, self.folder)
         self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
+    
+    def install_paper_core(self, core: PaperCoreManifest) -> CoreInstallation:
+        api = papermc.PaperMcFill()
+        mc = self.manifest.mc_version
+        build: papermc.Build | None
+        if core.build == PaperLatestBuild.LATEST:
+            build = api.get_latest_build("paper", mc)
+        elif core.build == PaperLatestBuild.LATEST_STABLE:
+            builds = api.get_builds("paper", mc)
+            if builds == None:
+                build = None
+            else:
+                build = next((b for b in builds if b.channel == PaperChannel.STABLE), None)
+        elif core.channels:
+            builds = api.get_builds("paper", mc)
+            if builds == None:
+                build = None
+            else:
+                build = next((b for b in builds if b.channel in core.channels), None)
+        else:
+            build = api.get_build("paper", mc, core.build)
+        if build is None:
+            raise ValueError(f"Failed to find paper build {core.build} for MC {mc}")
+        download = build.get_default_download()
+        jar_name = core.file_name if core.file_name else download.name
+        out = self.folder / jar_name
+        self.assets.download_file(api.session, str(download.url), out)
+        vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
+        return PaperCoreInstallation(update_time=millis(), files=[out], version_hash=vhash, build_number=build.id)
+        
+
+    def install_core(self):
+        core = self.manifest.core
+        cache = self.cache.check_core(core, self.manifest.mc_version)
+        if cache:
+            self.logger.info(f"⏩ Skipping core as it already installed")
+            return cache
+        self.logger.info(f"🔄 Downloading core {core.display_name()}..")
+        i: CoreInstallation
+        if isinstance(core, PaperCoreManifest):
+            i = self.install_paper_core(core)
+        else:
+            raise ValueError("Unsupported core")
+        self.logger.info(f"✅ Installed core {i.display_name()}")
+        self.cache.store_core(i)
     
     # TODO get rid of DownloadOptions in favor of AssetManifest
     def install(self, provider: AssetProvider, options: DownloadOptions) -> AssetInstallation:
@@ -424,6 +505,7 @@ def main(manifest: Path | None, github_token: str | None, debug: bool):
     installer = Installer(mf, Path(""), auth)
     installer.cache.load()
     installer.cache.check_all_assets(installer.manifest)
+    installer.install_core()
     installer.install_mods()
     installer.install_plugins()
     installer.cache.save()

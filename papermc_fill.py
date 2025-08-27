@@ -76,6 +76,9 @@ class Build(BaseModel):
     id: int
     time: AwareDatetime
 
+    def get_default_download(self):
+        return self.downloads["server:default"]
+
 
 class Java(BaseModel):
     flags: JavaFlags = JavaFlags()
