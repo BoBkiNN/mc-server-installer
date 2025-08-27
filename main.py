@@ -295,8 +295,7 @@ DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "man
 )
 @click.option(
     "--debug",
-    type=bool,
-    default=False,
+    is_flag=True,
     help="Debug logging switch",
 )
 def main(manifest: Path | None, github_token: str | None, debug: bool):
