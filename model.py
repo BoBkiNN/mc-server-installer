@@ -2,20 +2,21 @@ from pydantic import BaseModel, field_validator, Field, HttpUrl
 from typing import Annotated, Union, Literal
 import yaml
 from pathlib import Path
-from enum import Enum
+from modrinth import VersionType
 
-class ModinthChannel(Enum):
-    RELEASE = "release"
-    BETA = "beta"
-    ALPHA = "alpha"
 
 class AssetProvider(BaseModel):
     pass # TODO fallback providers
+    # TODO method to get asset id
 
 class ModrinthProvider(AssetProvider):
     project_id: str
-    channel: ModinthChannel | None = None
+    channel: VersionType | None = None
     """If not set, then channel is ignored"""
+    version_is_id: bool = False
+    """If true, than version is consumed as version id"""
+    version_name_pattern: str | None = None
+    """RegEx for version name"""
     type: Literal["modrinth"]
 
 class GithubReleasesProvider(AssetProvider):

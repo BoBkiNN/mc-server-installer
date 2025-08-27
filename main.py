@@ -12,6 +12,7 @@ from zipfile import ZipFile
 import uuid, os
 from dataclasses import dataclass
 import re
+import modrinth
 
 class FileSelector(ABC):
     def find_targets(self, ls: list[str]) -> list[str]:
@@ -32,11 +33,11 @@ class DownloadOptions:
 
 class AssetInstaller:
     def __init__(self, auth: Authorizaition, temp_folder: Path) -> None:
-        # TODO token
         self.auth = auth
         self.temp_folder = temp_folder
         self.logger = logging.getLogger("AssetInstaller")
         self.github = Github(auth=Auth.Token(auth.github)) if auth.github else Github()
+        self.modrinth = modrinth.Modrinth()
         self.temp_files: list[Path] = []
         self.repo_cache: dict[str, Repository] = {}
     
@@ -62,12 +63,7 @@ class AssetInstaller:
         if path.exists():
             os.remove(path)
     
-    def download_github_file(self, url: str, out_path: Path, is_binary: bool = False):
-        session = requests.Session()
-        if self.auth.github:
-            session.headers["Authorization"] = f"token {self.auth.github}"
-        if is_binary:
-            session.headers["Accept"] = "application/octet-stream"
+    def download_file(self, session: requests.Session, url: str, out_path: Path):
         response = session.get(url, stream=True)
         response.raise_for_status()
         total_size = response.headers["Content-Length"]
@@ -83,6 +79,14 @@ class AssetInstaller:
                     f.write(chunk)
                     bar.update(len(chunk))
         bar.close()
+    
+    def download_github_file(self, url: str, out_path: Path, is_binary: bool = False):
+        session = requests.Session()
+        if self.auth.github:
+            session.headers["Authorization"] = f"token {self.auth.github}"
+        if is_binary:
+            session.headers["Accept"] = "application/octet-stream"
+        self.download_file(session, url, out_path)
 
     def download_github_release(self, provider: GithubReleasesProvider, 
                                 options: DownloadOptions):
@@ -131,7 +135,7 @@ class AssetInstaller:
             artifacts = [a for a in ls]
         else:
             pattern = re.compile(provider.name_pattern)
-            artifacts = [a for a in ls if pattern.match(a.name)]
+            artifacts = [a for a in ls if pattern.search(a.name)]
         if len(artifacts) == 0:
             self.logger.warning(f"⚠ No artifacts found in run {run.id}")
         for artifact in artifacts:
@@ -148,6 +152,54 @@ class AssetInstaller:
                     c += 1
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             self.remove_temp_file(tmp)
+    
+    def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
+        project = self.modrinth.get_project(provider.project_id)
+        if not project:
+            raise ValueError(f"Unknown project {provider.project_id}")
+        vers = self.modrinth.get_versions(provider.project_id, ["spigot", "paper"])
+        if not vers:
+            raise ValueError(f"Cannot find versions for project {provider.project_id}")
+        name_pattern = re.compile(provider.version_name_pattern) if provider.version_name_pattern else None
+        filtered: list[modrinth.Version] = []
+        self.info(f"Got {len(vers)} versions from {project.title}")
+        for ver in vers:
+            # ignoring mc version currently
+            if provider.channel and provider.channel != ver.version_type:
+                continue
+            if provider.version_is_id and options.version != ver.version_number:
+                continue
+            if name_pattern and not name_pattern.search(ver.name):
+                continue
+            filtered.append(ver)
+        if len(filtered) == 0:
+            raise ValueError("No valid versions found")
+        def download_version(ver: modrinth.Version):
+            primary = ver.get_primary()
+            if not primary:
+                self.logger.warning(
+                    f"⚠ No primary file in version '{ver.name}'")
+                return False
+            out = options.folder / primary.filename
+            self.info(
+                f"🌐 Downloading primary file {primary.filename} from version '{ver.name}'")
+            self.download_file(self.modrinth.session, str(primary.url), out)
+            return True
+        if options.version == "latest":
+            ver = filtered[0]
+            if download_version(ver):
+                self.info(f"✅ Downloaded latest version {ver.name}")
+                return
+            else:
+                raise ValueError(f"Failed to download version {ver.name}. See errors above for details")
+        c = 0
+        for ver in filtered:
+            if download_version(ver):
+                c += 1
+        if c == 0:
+            raise ValueError(f"No valid versions found out of {len(filtered)}")
+        self.info(f"✅ Downloaded {c} files")
+            
 
 
 class Installer:
@@ -155,6 +207,7 @@ class Installer:
         self.manifest = manifest
         self.folder = server_folder
         self.auth = auth
+        self.logger = logging.getLogger("Installer")
         self.assets = AssetInstaller(auth, self.folder / "tmp")
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
@@ -164,6 +217,8 @@ class Installer:
             self.assets.download_github_release(provider, options)
         elif isinstance(provider, GithubActionsProvider):
             self.assets.download_github_actions(provider, options)
+        elif isinstance(provider, ModrinthProvider):
+            self.assets.download_modrinth(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
 
@@ -178,11 +233,17 @@ class Installer:
         self.install(plugin.provider, options)
     
     def install_mods(self):
+        mods = self.manifest.mods
+        if not mods: return
+        self.logger.info(f"🔄 Installing {len(mods)} mod(s)")
         self.mods_folder.mkdir(parents=True, exist_ok=True)
-        for mod in self.manifest.mods:
+        for mod in mods:
             self.install_mod(mod)
     
     def install_plugins(self):
+        plugins = self.manifest.plugins
+        if not plugins: return
+        self.logger.info(f"🔄 Installing {len(plugins)} plugin(s)")
         self.plugins_folder.mkdir(parents=True, exist_ok=True)
         for plugin in self.manifest.plugins:
             self.install_plugin(plugin)

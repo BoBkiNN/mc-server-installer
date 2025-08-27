@@ -167,15 +167,6 @@
       "title": "ModManifest",
       "type": "object"
     },
-    "ModinthChannel": {
-      "enum": [
-        "release",
-        "beta",
-        "alpha"
-      ],
-      "title": "ModinthChannel",
-      "type": "string"
-    },
     "ModrinthProvider": {
       "properties": {
         "project_id": {
@@ -185,13 +176,30 @@
         "channel": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ModinthChannel"
+              "$ref": "#/$defs/VersionType"
             },
             {
               "type": "null"
             }
           ],
           "default": null
+        },
+        "version_is_id": {
+          "default": false,
+          "title": "Version Is Id",
+          "type": "boolean"
+        },
+        "version_name_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Name Pattern"
         },
         "type": {
           "const": "modrinth",
@@ -248,6 +256,15 @@
       ],
       "title": "PluginManifest",
       "type": "object"
+    },
+    "VersionType": {
+      "enum": [
+        "release",
+        "beta",
+        "alpha"
+      ],
+      "title": "VersionType",
+      "type": "string"
     }
   },
   "properties": {
