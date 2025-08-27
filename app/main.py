@@ -62,7 +62,8 @@ class CacheStore:
         removed = self.cache.assets.pop(id, None)
         if removed:
             for p in removed.files:
-                os.remove(self.folder / p)
+                if p.is_file():
+                    os.remove(self.folder / p)
             self.logger.info(f"💥 Invalidated asset {id}")
             self.dirty = True
     
@@ -138,9 +139,14 @@ class Authorizaition(BaseModel):
 @dataclass
 class DownloadOptions:
     asset: AssetManifest
-    version: str
+    version: str | None
     folder: Path
     selector: FileSelector
+
+    def require_version(self, provider: Provider):
+        if self.version is None:
+            raise ValueError(f"provider {provider.type} requires version to be specified in manifest")
+        return self.version
 
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger) -> None:
@@ -220,7 +226,7 @@ class AssetInstaller:
         self.debug(f"Getting repository {provider.repository}")
         repo = self.get_repo(provider.repository)
         release: GitRelease
-        version = options.version
+        version = options.require_version(provider)
         if version == "latest":
             release = repo.get_latest_release()
         else:
@@ -246,10 +252,11 @@ class AssetInstaller:
         workflow = repo.get_workflow(provider.workflow)
         runs = workflow.get_runs(branch=provider.branch)  # type: ignore
         run: WorkflowRun | None
-        if options.version == "latest":
+        version = options.require_version(provider)
+        if version == "latest":
             run = runs[0]
         else:
-            number = int(options.version)
+            number = int(version)
             run = next((r for r in runs if r.run_number == number), None)
         if run is None:
             raise ValueError("No run found")
@@ -281,6 +288,8 @@ class AssetInstaller:
         return ret
     
     def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
+        if provider.version_is_id:
+            options.require_version(provider)
         self.debug(f"Getting project {provider.project_id}")
         project = self.modrinth.get_project(provider.project_id)
         if not project:
@@ -332,7 +341,20 @@ class AssetInstaller:
             raise ValueError(f"No valid versions found out of {len(filtered)}")
         self.info(f"✅ Downloaded {len(ret)} files")
         return ret
-            
+    
+    def download_direct_url(self, provider: DirectUrlProvider,
+                                options: DownloadOptions):
+        if provider.file_name:
+            name = provider.file_name
+        else:
+            path = provider.url.path
+            if not path:
+                name = options.asset.resolve_asset_id()
+            else:
+                name = path.split("/")[-1]
+        out = options.folder / name
+        self.download_file(requests.Session(), str(provider.url), out)
+        return [out]
 
 
 class Installer:
@@ -409,6 +431,8 @@ class Installer:
             ls = self.assets.download_github_actions(provider, options)
         elif isinstance(provider, ModrinthProvider):
             ls = self.assets.download_modrinth(provider, options)
+        elif isinstance(provider, DirectUrlProvider):
+            ls = self.assets.download_direct_url(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
         
@@ -428,6 +452,16 @@ class Installer:
                                   SimpleJarSelector())
         self.install(plugin.provider, options)
     
+    def install_custom(self, custom: CustomManifest):
+        if custom.folder.is_absolute():
+            folder = custom.folder
+        else:
+            folder = self.folder / custom.folder
+        folder.mkdir(parents=True, exist_ok=True)
+        options = DownloadOptions(custom, custom.version, folder,
+                                  SimpleJarSelector())
+        self.install(custom.provider, options)
+    
     def install_mods(self):
         mods = self.manifest.mods
         if not mods: return
@@ -445,6 +479,14 @@ class Installer:
         for plugin in self.manifest.plugins:
             self.install_plugin(plugin)
         self.logger.info(f"✅ Installed {len(plugins)} plugin(s)")
+    
+    def install_customs(self):
+        customs = self.manifest.customs
+        if not customs: return
+        self.logger.info(f"🔄 Installing {len(customs)} custom(s) asset(s)")
+        for custom in self.manifest.customs:
+            self.install_custom(custom)
+        self.logger.info(f"✅ Installed {len(customs)} custom(s) asset(s)")
 
 
 LOG_FORMATTER = logging.Formatter(
@@ -517,6 +559,7 @@ def main(manifest: Path | None, folder: Path, github_token: str | None, debug: b
     installer.install_core()
     installer.install_mods()
     installer.install_plugins()
+    installer.install_customs()
     installer.cache.save()
     installer.assets.clear_temp()
 

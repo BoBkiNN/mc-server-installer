@@ -10,6 +10,71 @@
       "title": "Channel",
       "type": "string"
     },
+    "CustomManifest": {
+      "properties": {
+        "provider": {
+          "discriminator": {
+            "mapping": {
+              "github": "#/$defs/GithubReleasesProvider",
+              "github-actions": "#/$defs/GithubActionsProvider",
+              "modrinth": "#/$defs/ModrinthProvider",
+              "url": "#/$defs/DirectUrlProvider"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ModrinthProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubReleasesProvider"
+            },
+            {
+              "$ref": "#/$defs/DirectUrlProvider"
+            },
+            {
+              "$ref": "#/$defs/GithubActionsProvider"
+            }
+          ],
+          "title": "Provider"
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Asset Id"
+        },
+        "folder": {
+          "format": "path",
+          "title": "Folder",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "provider",
+        "asset_id",
+        "folder"
+      ],
+      "title": "CustomManifest",
+      "type": "object"
+    },
     "DatapackManifest": {
       "properties": {
         "provider": {
@@ -419,6 +484,14 @@
         "$ref": "#/$defs/DatapackManifest"
       },
       "title": "Datapacks",
+      "type": "array"
+    },
+    "customs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CustomManifest"
+      },
+      "title": "Customs",
       "type": "array"
     }
   },
