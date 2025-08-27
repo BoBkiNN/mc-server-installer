@@ -358,12 +358,12 @@ class AssetInstaller:
 
 
 class Installer:
-    def __init__(self, manifest: Manifest, server_folder: Path, auth: Authorizaition) -> None:
+    def __init__(self, manifest: Manifest, server_folder: Path, auth: Authorizaition, debug: bool) -> None:
         self.manifest = manifest
         self.folder = server_folder
         self.auth = auth
         self.logger = logging.getLogger("Installer")
-        self.cache = CacheStore(self.folder / ".install_cache.json", manifest, True, self.folder)
+        self.cache = CacheStore(self.folder / ".install_cache.json", manifest, debug, self.folder)
         self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
@@ -555,7 +555,7 @@ def main(manifest: Path | None, folder: Path, github_token: str | None, debug: b
     
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp)
-    installer = Installer(mf, folder, auth)
+    installer = Installer(mf, folder, auth, debug)
     installer.cache.load()
     installer.cache.check_all_assets(installer.manifest)
     installer.install_core()
