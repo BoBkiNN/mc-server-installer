@@ -57,13 +57,13 @@ class Manifest(BaseModel):
     mc_version: str
     paper_build: str | int
 
-    mods: list[ModManifest]
-    plugins: list[PluginManifest]
-    datapacks: list[DatapackManifest]
+    mods: list[ModManifest] = []
+    plugins: list[PluginManifest] = []
+    datapacks: list[DatapackManifest] = []
 
     @field_validator('paper_build')
     @classmethod
-    def ensure_foobar(cls, v: str | int):
+    def validate_paper_build(cls, v: str | int):
         if isinstance(v, str) and v != "latest":
             raise ValueError("paper_build must be number or 'latest'")
         return v

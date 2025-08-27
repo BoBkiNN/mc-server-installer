@@ -284,6 +284,7 @@
       "title": "Paper Build"
     },
     "mods": {
+      "default": [],
       "items": {
         "$ref": "#/$defs/ModManifest"
       },
@@ -291,6 +292,7 @@
       "type": "array"
     },
     "plugins": {
+      "default": [],
       "items": {
         "$ref": "#/$defs/PluginManifest"
       },
@@ -298,6 +300,7 @@
       "type": "array"
     },
     "datapacks": {
+      "default": [],
       "items": {
         "$ref": "#/$defs/DatapackManifest"
       },
@@ -307,10 +310,7 @@
   },
   "required": [
     "mc_version",
-    "paper_build",
-    "mods",
-    "plugins",
-    "datapacks"
+    "paper_build"
   ],
   "title": "Manifest",
   "type": "object"
