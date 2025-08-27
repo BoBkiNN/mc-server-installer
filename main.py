@@ -158,9 +158,11 @@ class AssetInstaller:
             self.remove_temp_file(tmp)
     
     def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
+        self.debug(f"Getting project {provider.project_id}")
         project = self.modrinth.get_project(provider.project_id)
         if not project:
             raise ValueError(f"Unknown project {provider.project_id}")
+        self.debug(f"Getting project versions..")
         vers = self.modrinth.get_versions(provider.project_id, ["spigot", "paper"])
         if not vers:
             raise ValueError(f"Cannot find versions for project {provider.project_id}")
