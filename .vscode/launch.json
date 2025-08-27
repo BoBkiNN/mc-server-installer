@@ -9,7 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "main",
-            "args": ["--manifest", "../run/manifest.json5"],
+            "args": ["--manifest", "../run/manifest.json5", "--folder", "../run"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/app"
         },

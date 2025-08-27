@@ -473,9 +473,15 @@ DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "man
 @click.command()
 @click.option(
     "--manifest",
-    type=click.Path(path_type=Path),  # ensures Path object
+    type=click.Path(path_type=Path),
     default=None,
     help="Path to the manifest file",
+)
+@click.option(
+    "--folder",
+    type=click.Path(path_type=Path),
+    default=Path(""),
+    help="Folder where server is located",
 )
 @click.option(
     "--github-token",
@@ -488,7 +494,7 @@ DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "man
     is_flag=True,
     help="Debug logging switch",
 )
-def main(manifest: Path | None, github_token: str | None, debug: bool):
+def main(manifest: Path | None, folder: Path, github_token: str | None, debug: bool):
     setup_logging(debug)
     mfp: Path
     if manifest is not None:
@@ -500,12 +506,12 @@ def main(manifest: Path | None, github_token: str | None, debug: bool):
                 mfp = p
                 break
         else:
-            print("No manifest.json found or passed")
+            click.echo("No manifest.json found or passed")
             return
     
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp)
-    installer = Installer(mf, Path("../run"), auth)
+    installer = Installer(mf, folder, auth)
     installer.cache.load()
     installer.cache.check_all_assets(installer.manifest)
     installer.install_core()
