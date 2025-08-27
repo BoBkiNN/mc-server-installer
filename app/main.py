@@ -505,7 +505,7 @@ def main(manifest: Path | None, github_token: str | None, debug: bool):
     
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp)
-    installer = Installer(mf, Path(""), auth)
+    installer = Installer(mf, Path("../run"), auth)
     installer.cache.load()
     installer.cache.check_all_assets(installer.manifest)
     installer.install_core()

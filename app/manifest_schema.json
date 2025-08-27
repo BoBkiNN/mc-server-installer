@@ -239,7 +239,7 @@
           "title": "Version Name Pattern"
         },
         "ignore_game_version": {
-          "default": true,
+          "default": false,
           "title": "Ignore Game Version",
           "type": "boolean"
         },

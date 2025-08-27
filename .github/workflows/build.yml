@@ -30,7 +30,7 @@ jobs:
       - name: Build thin zipapp
         run: |
           mkdir -p out
-          python -m zipapp . -o out/mcsi-${BUILD_NUM}.zip -m main:main
+          python -m zipapp app -o out/mcsi-${BUILD_NUM}.zip -m main:main
 
       # install dependencies into current folder
       - name: Install dependencies locally
@@ -40,7 +40,7 @@ jobs:
       # create fat installer (python files + deps)
       - name: Build fat zipapp
         run: |
-          python -m zipapp . -o out/mcsi-${BUILD_NUM}-fat.zip -m main:main
+          python -m zipapp app -o out/mcsi-${BUILD_NUM}-fat.zip -m main:main
 
       # upload artifacts
       - name: Upload artifacts

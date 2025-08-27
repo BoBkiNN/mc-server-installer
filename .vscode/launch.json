@@ -8,16 +8,18 @@
             "name": "main.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "../main.py",
+            "module": "main",
+            "args": ["--manifest", "../run/manifest.json5"],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/run"
+            "cwd": "${workspaceFolder}/app"
         },
         {
             "name": "Generate schema",
             "type": "debugpy",
             "request": "launch",
-            "program": "generate_schema.py",
+            "module": "generate_schema",
             "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/app"
         }
     ]
 }
