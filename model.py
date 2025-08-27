@@ -6,8 +6,11 @@ from modrinth import VersionType
 
 
 class AssetProvider(BaseModel):
-    pass # TODO fallback providers
-    # TODO method to get asset id
+     # TODO fallback providers
+    
+    def get_asset_id(self) -> str:
+        """Returns asset id without versions. Do not invokes any IO"""
+        ...
 
 class ModrinthProvider(AssetProvider):
     project_id: str
@@ -19,9 +22,15 @@ class ModrinthProvider(AssetProvider):
     """RegEx for version name"""
     type: Literal["modrinth"]
 
+    def get_asset_id(self):
+        return self.project_id
+
 class GithubReleasesProvider(AssetProvider):
     repository: str
     type: Literal["github"]
+
+    def get_asset_id(self) -> str:
+        return self.repository
 
 class GithubActionsProvider(AssetProvider):
     """Downloads artifact from github actions"""
@@ -32,9 +41,15 @@ class GithubActionsProvider(AssetProvider):
     """RegEx for artifact name. All artifacts is downloaded if not set"""
     type: Literal["github-actions"]
 
+    def get_asset_id(self) -> str:
+        return self.repository+"/"+self.workflow+"@"+self.branch
+
 class DirectUrlProvider(AssetProvider):
     url: HttpUrl
     type: Literal["url"]
+
+    def get_asset_id(self) -> str:
+        return str(self.url)
 
 Provider = Annotated[
     Union[ModrinthProvider, GithubReleasesProvider,
@@ -42,16 +57,23 @@ Provider = Annotated[
     Field(discriminator="type"),
 ]
 
-class ModManifest(BaseModel):
+class AssetManifest(BaseModel):
     provider: Provider
+
+    def get_asset_id(self) -> str:
+        return f"({self.provider.get_asset_id()})@{self.provider.type}"
+
+
+class ModManifest(AssetManifest):
     version: str
 
-class PluginManifest(BaseModel):
-    provider: Provider
+
+class PluginManifest(AssetManifest):
     version: str
 
-class DatapackManifest(BaseModel):
-    provider: Provider
+
+class DatapackManifest(AssetManifest):
+    pass
 
 class Manifest(BaseModel):
     mc_version: str

@@ -43,6 +43,9 @@ class AssetInstaller:
     
     def info(self, msg: object):
         self.logger.info(msg)
+
+    def debug(self, msg: object):
+        self.logger.debug(msg)
     
     def get_repo(self, name: str):
         if name in self.repo_cache:
@@ -90,6 +93,7 @@ class AssetInstaller:
 
     def download_github_release(self, provider: GithubReleasesProvider, 
                                 options: DownloadOptions):
+        self.debug(f"Getting repository {provider.repository}")
         repo = self.get_repo(provider.repository)
         release: GitRelease
         version = options.version
@@ -162,7 +166,7 @@ class AssetInstaller:
             raise ValueError(f"Cannot find versions for project {provider.project_id}")
         name_pattern = re.compile(provider.version_name_pattern) if provider.version_name_pattern else None
         filtered: list[modrinth.Version] = []
-        self.info(f"Got {len(vers)} versions from {project.title}")
+        self.debug(f"Got {len(vers)} versions from {project.title}")
         for ver in vers:
             # ignoring mc version currently
             if provider.channel and provider.channel != ver.version_type:
@@ -223,11 +227,13 @@ class Installer:
             raise ValueError(f"Unsupported provider {type(provider)}")
 
     def install_mod(self, mod: ModManifest):
+        self.logger.info(f"🔄 Downloading mod {mod.get_asset_id()}")
         options = DownloadOptions(mod.version, self.mods_folder,
                                   SimpleJarSelector())
         self.install(mod.provider, options)
     
     def install_plugin(self, plugin: PluginManifest):
+        self.logger.info(f"🔄 Downloading plugin {plugin.get_asset_id()}")
         options = DownloadOptions(plugin.version, self.plugins_folder,
                                   SimpleJarSelector())
         self.install(plugin.provider, options)
@@ -254,9 +260,9 @@ LOG_FORMATTER = logging.Formatter(
     datefmt='%d.%m.%Y %H:%M:%S'
 )
 
-def setup_logging():
+def setup_logging(debug: bool):
     logger = logging.getLogger()  # Root logger
-    logger.setLevel("INFO")
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
     # Create console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -285,8 +291,14 @@ DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "man
     default=None,
     help="GitHub token for github providers",
 )
-def main(manifest: Path | None, github_token: str | None):
-    setup_logging()
+@click.option(
+    "--debug",
+    type=bool,
+    default=False,
+    help="Debug logging switch",
+)
+def main(manifest: Path | None, github_token: str | None, debug: bool):
+    setup_logging(debug)
     mfp: Path
     if manifest is not None:
         mfp = manifest
