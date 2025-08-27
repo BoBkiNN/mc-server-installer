@@ -413,7 +413,8 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
     
-    # TODO get rid of DownloadOptions in favor of AssetManifest
+    # TODO get rid of DownloadOptions in favor of AssetManifest.
+    # With this there will be ability to get asset destination folder using depending on manifest type
     def install(self, provider: AssetProvider, options: DownloadOptions) -> AssetInstallation:
         asset = options.asset
         asset_id = asset.resolve_asset_id()
