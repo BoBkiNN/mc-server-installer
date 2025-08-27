@@ -1,6 +1,6 @@
 from pydantic import BaseModel, field_validator, Field, HttpUrl
 from typing import Annotated, Union, Literal
-import yaml
+import yaml, json5
 from pathlib import Path
 from modrinth import VersionType
 
@@ -68,11 +68,17 @@ class Manifest(BaseModel):
             raise ValueError("paper_build must be number or 'latest'")
         return v
     
+    
     @staticmethod
     def load(file: Path) -> "Manifest":
-        file.read_text("utf-8")
+        ext = file.name.split(".")[-1]
         with open(file, "r", encoding="utf-8") as f:
-            d = yaml.load(f, yaml.FullLoader)
+            if ext in ["json", "yml", "yaml"]:
+                d = yaml.load(f, yaml.FullLoader)
+            elif ext in ["json5", "jsonc"]:
+                d = json5.load(f, encoding="utf-8")
+            else:
+                raise ValueError(f"Cannot find loader for manifest extension {ext}")
         try:
             return Manifest.model_validate(d)
         except Exception as e:

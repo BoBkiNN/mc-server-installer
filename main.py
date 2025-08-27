@@ -270,7 +270,7 @@ def setup_logging():
         logger.handlers.clear()
         logger.addHandler(console_handler)
 
-DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml"]
+DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "manifest.json5", "manifest.jsonc"]
 
 @click.command()
 @click.option(

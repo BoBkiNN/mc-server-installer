@@ -1,3 +1,4 @@
 pydantic
 PyGithub
 click
+json5
