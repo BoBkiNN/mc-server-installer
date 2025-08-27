@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # allow manual run
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # checkout code
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # set up Python 3.12
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # get build number (use GITHUB_RUN_NUMBER)
+      - name: Set build number
+        run: echo "BUILD_NUM=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+
+      # create thin installer (only python files)
+      - name: Build thin zipapp
+        run: |
+          mkdir -p out
+          python -m zipapp . -o out/mcsi-${BUILD_NUM}.zip
+
+      # install dependencies into current folder
+      - name: Install dependencies locally
+        run: |
+          pip install -r requirements.txt -t .
+
+      # create fat installer (python files + deps)
+      - name: Build fat zipapp
+        run: |
+          python -m zipapp . -o out/mcsi-${BUILD_NUM}-fat.zip
+
+      # upload artifacts
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MCSI-b.${GITHUB_RUN_NUMBER}
+          path: out/
