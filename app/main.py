@@ -420,7 +420,7 @@ class Installer:
         asset_hash = asset.stable_hash()
         cached = self.cache.check_asset(asset_id, asset_hash)
         if cached:
-            self.logger.info(f"⏩ Skipping {asset.type.value} {asset_id} as it already installed")
+            self.logger.info(f"⏩ Skipping {asset.type.value} '{asset_id}' as it already installed")
             return cached
         
         self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
