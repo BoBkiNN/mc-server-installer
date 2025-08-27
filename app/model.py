@@ -173,7 +173,7 @@ class Manifest(BaseModel):
         frozen = True
     
     def get_asset(self, id: str):
-        ls = self.mods + self.plugins + self.datapacks
+        ls = self.mods + self.plugins + self.datapacks + self.customs
         for mf in ls:
             if mf.resolve_asset_id() == id:
                 return mf

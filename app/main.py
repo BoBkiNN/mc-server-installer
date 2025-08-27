@@ -437,7 +437,8 @@ class Installer:
             raise ValueError(f"Unsupported provider {type(provider)}")
         
         # TODO post-download steps here
-        result = AssetInstallation.create(asset_id, asset_hash, millis(), ls)
+        files = [p.relative_to(self.folder) if not p.is_absolute() else p for p in ls]
+        result = AssetInstallation.create(asset_id, asset_hash, millis(), files)
         self.cache.store_asset(result)
         return result
 
