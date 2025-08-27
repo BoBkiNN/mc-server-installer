@@ -226,9 +226,9 @@ class PaperCoreInstallation(CoreInstallation):
         return f"paper-{self.build_number}"
 
 class Cache(BaseModel):
+    mc_version: str
     assets: dict[str, AssetInstallation] = {}
     core: CoreInstallation | None = None
-    mc_version: str = ""
 
     @staticmethod
     def create(mf: Manifest):
