@@ -13,6 +13,76 @@ import uuid, os
 from dataclasses import dataclass
 import re
 import modrinth
+import time
+
+
+def millis():
+    return int(time.time()*1000) 
+
+class CacheStore:
+    def __init__(self, file: Path, debug: bool, folder: Path) -> None:
+        self.cache = Cache()
+        self.logger = logging.getLogger("Cache")
+        self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
+        self.file = file
+        self.dirty = False
+        """Specifies if cache was modified"""
+        self.debug = debug
+        self.folder = folder
+    
+    def save(self):
+        if not self.dirty:
+            return
+        self.cache.save(self.file, self.debug)
+        self.dirty = False
+    
+    def reset(self):
+        self.cache = Cache()
+        self.logger.debug("Cache reset.")
+    
+    def load(self):
+        if not self.file.is_file():
+            self.reset()
+            return
+        try:
+            self.cache = Cache.load(self.file)
+            self.logger.debug(f"Loaded cache with {len(self.cache.assets)} assets")
+        except Exception as e:
+            self.logger.error("Exception loading stored cache. Resetting", exc_info=e)
+            self.reset()
+    
+    def invalidate_asset(self, asset: str | AssetManifest):
+        id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
+        removed = self.cache.assets.pop(id, None)
+        if removed:
+            self.logger.info(f"💥 Invalidated asset {id}")
+            self.dirty = True
+    
+    def check_asset(self, asset: str | AssetManifest):
+        """Returns True if cache is valid"""
+        id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
+        entry = self.cache.assets.get(id, None)
+        if not entry:
+            return False
+        if entry.is_valid(self.folder):
+            return entry
+        else:
+            self.invalidate_asset(id)
+            return None
+    
+    def store_asset(self, asset: AssetInstallation):
+        self.cache.assets[asset.asset_id] = asset
+        self.dirty = True
+    
+    def check_all_assets(self):
+        c = 0
+        for asset in list(self.cache.assets):
+            if not self.check_asset(asset):
+                c += 1
+        if c:
+            self.logger.info(f"⚠  {c} asset(s) were invalidated")
+        
+
 
 class FileSelector(ABC):
     def find_targets(self, ls: list[str]) -> list[str]:
@@ -27,6 +97,7 @@ class Authorizaition(BaseModel):
 
 @dataclass
 class DownloadOptions:
+    asset: AssetManifest
     version: str
     folder: Path
     selector: FileSelector
@@ -65,6 +136,17 @@ class AssetInstaller:
         self.temp_files.remove(path)
         if path.exists():
             os.remove(path)
+        if len(self.temp_files) == 0:
+            if len(os.listdir(self.temp_folder)) == 0:
+                os.rmdir(self.temp_folder)
+    
+    def clear_temp(self):
+        for path in list(self.temp_files):
+            if path.exists():
+                os.remove(path)
+            self.temp_files.remove(path)
+        if self.temp_folder.exists() and not os.listdir(self.temp_folder):
+            os.rmdir(self.temp_folder)
     
     def download_file(self, session: requests.Session, url: str, out_path: Path):
         response = session.get(url, stream=True)
@@ -105,20 +187,16 @@ class AssetInstaller:
         assets = release.get_assets()
         m = {a.name: a for a in assets}
         names = options.selector.find_targets(list(m))
-        i = 0
+        ret: list[Path] = []
         for k, v in m.items():
             if k not in names: continue
             outPath = options.folder / k
-            if outPath.is_file():
-                fs = outPath.stat().st_size
-                if fs == v.size:
-                    self.info(f"⏩ Skipping artifact {k} due to its presense and matching sizes")
-                    continue
             self.info(f"🌐 Downloading artifact {k} to {outPath}..")
             self.download_github_file(v.url, outPath, True)
             # v.download_asset(str(outPath.resolve())) # type: ignore
-            i+=1
-        self.info(f"✅ Downloaded {i} assets from release")
+            ret.append(outPath)
+        self.info(f"✅ Downloaded {len(ret)} assets from release")
+        return ret
     
     def download_github_actions(self, provider: GithubActionsProvider, 
                                          options: DownloadOptions):
@@ -142,6 +220,7 @@ class AssetInstaller:
             artifacts = [a for a in ls if pattern.search(a.name)]
         if len(artifacts) == 0:
             self.logger.warning(f"⚠ No artifacts found in run {run.id}")
+        ret: list[Path] = []
         for artifact in artifacts:
             tmp = self.get_temp_file()
             self.info(f"🌐 Downloading artifact {artifact.name} to {tmp}..")
@@ -153,9 +232,11 @@ class AssetInstaller:
                 for name in targets:
                     self.info(f"Extracting {name}")
                     zf.extract(name, path=options.folder)
+                    ret.append(options.folder / name)
                     c += 1
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             self.remove_temp_file(tmp)
+        return ret
     
     def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
         self.debug(f"Getting project {provider.project_id}")
@@ -185,26 +266,29 @@ class AssetInstaller:
             if not primary:
                 self.logger.warning(
                     f"⚠ No primary file in version '{ver.name}'")
-                return False
+                return None
             out = options.folder / primary.filename
             self.info(
                 f"🌐 Downloading primary file {primary.filename} from version '{ver.name}'")
             self.download_file(self.modrinth.session, str(primary.url), out)
-            return True
+            return out
         if options.version == "latest":
             ver = filtered[0]
-            if download_version(ver):
+            file = download_version(ver)
+            if file:
                 self.info(f"✅ Downloaded latest version {ver.name}")
-                return
+                return [file]
             else:
                 raise ValueError(f"Failed to download version {ver.name}. See errors above for details")
-        c = 0
+        ret: list[Path] = []
         for ver in filtered:
-            if download_version(ver):
-                c += 1
-        if c == 0:
+            file = download_version(ver)
+            if file:
+                ret.append(file)
+        if not ret:
             raise ValueError(f"No valid versions found out of {len(filtered)}")
-        self.info(f"✅ Downloaded {c} files")
+        self.info(f"✅ Downloaded {len(ret)} files")
+        return ret
             
 
 
@@ -214,29 +298,44 @@ class Installer:
         self.folder = server_folder
         self.auth = auth
         self.logger = logging.getLogger("Installer")
+        self.cache = CacheStore(self.folder / ".install_cache.json", True, self.folder)
         self.assets = AssetInstaller(auth, self.folder / "tmp", self.logger)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
-    def install(self, provider: AssetProvider, options: DownloadOptions):
+    # TODO get rid of DownloadOptions in favor of AssetManifest
+    def install(self, provider: AssetProvider, options: DownloadOptions) -> AssetInstallation:
+        asset = options.asset
+        asset_id = asset.resolve_asset_id()
+        cached = self.cache.check_asset(asset_id)
+        if cached:
+            self.logger.info(f"⏩ Skipping {asset.type.value} {asset_id} as it already installed")
+            return cached
+        
+        self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
+        ls: list[Path]
         if isinstance(provider, GithubReleasesProvider):
-            self.assets.download_github_release(provider, options)
+            ls = self.assets.download_github_release(provider, options)
         elif isinstance(provider, GithubActionsProvider):
-            self.assets.download_github_actions(provider, options)
+            ls = self.assets.download_github_actions(provider, options)
         elif isinstance(provider, ModrinthProvider):
-            self.assets.download_modrinth(provider, options)
+            ls = self.assets.download_modrinth(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
+        
+        # TODO post-download steps here
+        result = AssetInstallation.create(asset_id, millis(), ls)
+        self.cache.store_asset(result)
+        return result
 
     def install_mod(self, mod: ModManifest):
-        self.logger.info(f"🔄 Downloading mod {mod.get_asset_id()}")
-        options = DownloadOptions(mod.version, self.mods_folder,
+        
+        options = DownloadOptions(mod, mod.version, self.mods_folder,
                                   SimpleJarSelector())
         self.install(mod.provider, options)
     
     def install_plugin(self, plugin: PluginManifest):
-        self.logger.info(f"🔄 Downloading plugin {plugin.get_asset_id()}")
-        options = DownloadOptions(plugin.version, self.plugins_folder,
+        options = DownloadOptions(plugin, plugin.version, self.plugins_folder,
                                   SimpleJarSelector())
         self.install(plugin.provider, options)
     
@@ -316,8 +415,12 @@ def main(manifest: Path | None, github_token: str | None, debug: bool):
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp)
     installer = Installer(mf, Path(""), auth)
+    installer.cache.load()
+    installer.cache.check_all_assets()
     installer.install_mods()
     installer.install_plugins()
+    installer.cache.save()
+    installer.assets.clear_temp()
 
 if __name__ == "__main__":
     main()

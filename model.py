@@ -1,14 +1,15 @@
-from pydantic import BaseModel, field_validator, Field, HttpUrl
+from pydantic import BaseModel, field_validator, Field, HttpUrl, ValidationError, PrivateAttr
 from typing import Annotated, Union, Literal
-import yaml, json5
+import yaml, json5, json
 from pathlib import Path
 from modrinth import VersionType
+from enum import Enum
 
 
 class AssetProvider(BaseModel):
      # TODO fallback providers
     
-    def get_asset_id(self) -> str:
+    def create_asset_id(self) -> str:
         """Returns asset id without versions. Do not invokes any IO"""
         ...
 
@@ -23,7 +24,7 @@ class ModrinthProvider(AssetProvider):
     """RegEx for version name"""
     type: Literal["modrinth"]
 
-    def get_asset_id(self):
+    def create_asset_id(self):
         return self.project_id
 
 class GithubReleasesProvider(AssetProvider):
@@ -31,7 +32,7 @@ class GithubReleasesProvider(AssetProvider):
     repository: str
     type: Literal["github"]
 
-    def get_asset_id(self) -> str:
+    def create_asset_id(self) -> str:
         return self.repository
 
 class GithubActionsProvider(AssetProvider):
@@ -43,7 +44,7 @@ class GithubActionsProvider(AssetProvider):
     """RegEx for artifact name. All artifacts is downloaded if not set"""
     type: Literal["github-actions"]
 
-    def get_asset_id(self) -> str:
+    def create_asset_id(self) -> str:
         return self.repository+"/"+self.workflow+"@"+self.branch
 
 class DirectUrlProvider(AssetProvider):
@@ -51,8 +52,13 @@ class DirectUrlProvider(AssetProvider):
     url: HttpUrl
     type: Literal["url"]
 
-    def get_asset_id(self) -> str:
+    def create_asset_id(self) -> str:
         return str(self.url)
+
+class AssetType(Enum):
+    MOD = "mod"
+    PLUGIN = "plugin"
+    DATAPACK = "datapack"
 
 Provider = Annotated[
     Union[ModrinthProvider, GithubReleasesProvider,
@@ -62,21 +68,40 @@ Provider = Annotated[
 
 class AssetManifest(BaseModel):
     provider: Provider
+    asset_id: str | None = None
+    """Asset id override"""
 
-    def get_asset_id(self) -> str:
-        return f"({self.provider.get_asset_id()})@{self.provider.type}"
+    _asset_id: str | None = None  # cache
+
+    def resolve_asset_id(self) -> str:
+        if self._asset_id:
+            return self._asset_id
+        if self.asset_id:
+            v = self.asset_id
+        else:
+            v = self.create_asset_id()
+        return v
+
+    def create_asset_id(self) -> str:
+        return f"({self.provider.create_asset_id()})@{self.provider.type}"
+    
+    @property
+    def type(self) -> AssetType:
+        return getattr(self, "_type")
 
 
 class ModManifest(AssetManifest):
     version: str
+    _type = AssetType.MOD
 
 
 class PluginManifest(AssetManifest):
     version: str
+    _type = AssetType.PLUGIN
 
 
 class DatapackManifest(AssetManifest):
-    pass
+    _type = AssetType.DATAPACK
 
 class Manifest(BaseModel):
     mc_version: str
@@ -106,6 +131,38 @@ class Manifest(BaseModel):
                 raise ValueError(f"Cannot find loader for manifest extension {ext}")
         try:
             return Manifest.model_validate(d)
-        except Exception as e:
+        except ValidationError as e:
             raise ValueError("Failed to load manifest") from e
     
+class AssetInstallation(BaseModel):
+    asset_id: str
+    update_time: int
+    """UNIX epoch in millis"""
+    files: list[Path]
+    """List of files after downloading and installation (no temporary files)"""
+
+    def is_valid(self, folder: Path):
+        for file in self.files:
+            path = folder / file
+            if not path.is_file():
+                return False
+        return True
+    
+    @staticmethod
+    def create(asset_id: str, update_time: int, files: list[Path]) -> "AssetInstallation":
+        return AssetInstallation(asset_id=asset_id, update_time=update_time, files=files)
+
+class Cache(BaseModel):
+    assets: dict[str, AssetInstallation] = {}
+
+    @staticmethod
+    def load(file: Path):
+        with open(file, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        try:
+            return Cache.model_validate(d)
+        except ValidationError as e:
+            raise ValueError("Failed to load caches") from e
+    
+    def save(self, file: Path, debug: bool = False):
+        file.write_text(self.model_dump_json(indent=2 if debug else None))
