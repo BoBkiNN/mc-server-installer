@@ -35,7 +35,7 @@ jobs:
       # install dependencies into current folder
       - name: Install dependencies locally
         run: |
-          pip install -r requirements.txt -t .
+          pip install -r app/requirements.txt -t app
 
       # create fat installer (python files + deps)
       - name: Build fat zipapp
