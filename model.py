@@ -27,7 +27,7 @@ class ModrinthProvider(AssetProvider):
     """If true, than version is consumed as version id"""
     version_name_pattern: str | None = None
     """RegEx for version name"""
-    ignore_game_version: bool = True
+    ignore_game_version: bool = False
     type: Literal["modrinth"]
 
     def create_asset_id(self):
