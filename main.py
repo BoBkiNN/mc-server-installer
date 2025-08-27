@@ -434,6 +434,7 @@ class Installer:
         self.mods_folder.mkdir(parents=True, exist_ok=True)
         for mod in mods:
             self.install_mod(mod)
+        self.logger.info(f"✅ Installed {len(mods)} mod(s)")
     
     def install_plugins(self):
         plugins = self.manifest.plugins
@@ -442,11 +443,12 @@ class Installer:
         self.plugins_folder.mkdir(parents=True, exist_ok=True)
         for plugin in self.manifest.plugins:
             self.install_plugin(plugin)
+        self.logger.info(f"✅ Installed {len(plugins)} plugin(s)")
 
 
 LOG_FORMATTER = logging.Formatter(
     '[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',
-    datefmt='%d.%m.%Y %H:%M:%S'
+    datefmt='%H:%M:%S'
 )
 
 def setup_logging(debug: bool):
