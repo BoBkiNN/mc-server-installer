@@ -36,6 +36,7 @@
       "type": "object"
     },
     "DirectUrlProvider": {
+      "description": "Downloads asset from specified url",
       "properties": {
         "url": {
           "format": "uri",
@@ -106,6 +107,7 @@
       "type": "object"
     },
     "GithubReleasesProvider": {
+      "description": "Downloads asset from github",
       "properties": {
         "repository": {
           "title": "Repository",
@@ -168,6 +170,7 @@
       "type": "object"
     },
     "ModrinthProvider": {
+      "description": "Downloads asset from modrinth",
       "properties": {
         "project_id": {
           "title": "Project Id",

@@ -13,6 +13,7 @@ class AssetProvider(BaseModel):
         ...
 
 class ModrinthProvider(AssetProvider):
+    """Downloads asset from modrinth"""
     project_id: str
     channel: VersionType | None = None
     """If not set, then channel is ignored"""
@@ -26,6 +27,7 @@ class ModrinthProvider(AssetProvider):
         return self.project_id
 
 class GithubReleasesProvider(AssetProvider):
+    """Downloads asset from github"""
     repository: str
     type: Literal["github"]
 
@@ -45,6 +47,7 @@ class GithubActionsProvider(AssetProvider):
         return self.repository+"/"+self.workflow+"@"+self.branch
 
 class DirectUrlProvider(AssetProvider):
+    """Downloads asset from specified url"""
     url: HttpUrl
     type: Literal["url"]
 
