@@ -485,10 +485,10 @@ class Installer:
     def install_customs(self):
         customs = self.manifest.customs
         if not customs: return
-        self.logger.info(f"🔄 Installing {len(customs)} custom(s) asset(s)")
+        self.logger.info(f"🔄 Installing {len(customs)} custom asset(s)")
         for custom in self.manifest.customs:
             self.install_custom(custom)
-        self.logger.info(f"✅ Installed {len(customs)} custom(s) asset(s)")
+        self.logger.info(f"✅ Installed {len(customs)} custom asset(s)")
 
 
 LOG_FORMATTER = logging.Formatter(
