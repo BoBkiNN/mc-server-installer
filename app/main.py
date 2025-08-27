@@ -395,7 +395,7 @@ class Installer:
         out = self.folder / jar_name
         self.assets.download_file(api.session, str(download.url), out)
         vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
-        return PaperCoreInstallation(update_time=millis(), files=[out], version_hash=vhash, build_number=build.id)
+        return PaperCoreInstallation(update_time=millis(), files=[Path(jar_name)], version_hash=vhash, build_number=build.id)
         
 
     def install_core(self):
