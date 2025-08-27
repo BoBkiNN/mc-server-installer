@@ -32,10 +32,10 @@ class DownloadOptions:
     selector: FileSelector
 
 class AssetInstaller:
-    def __init__(self, auth: Authorizaition, temp_folder: Path) -> None:
+    def __init__(self, auth: Authorizaition, temp_folder: Path, logger: logging.Logger) -> None:
         self.auth = auth
         self.temp_folder = temp_folder
-        self.logger = logging.getLogger("AssetInstaller")
+        self.logger = logger
         self.github = Github(auth=Auth.Token(auth.github)) if auth.github else Github()
         self.modrinth = modrinth.Modrinth()
         self.temp_files: list[Path] = []
@@ -214,7 +214,7 @@ class Installer:
         self.folder = server_folder
         self.auth = auth
         self.logger = logging.getLogger("Installer")
-        self.assets = AssetInstaller(auth, self.folder / "tmp")
+        self.assets = AssetInstaller(auth, self.folder / "tmp", self.logger)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
