@@ -249,6 +249,39 @@
       "title": "ModrinthProvider",
       "type": "object"
     },
+    "PaperCoreManifest": {
+      "properties": {
+        "type": {
+          "const": "paper",
+          "enum": [
+            "paper"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "build": {
+          "anyOf": [
+            {
+              "const": "latest",
+              "enum": [
+                "latest"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Build"
+        }
+      },
+      "required": [
+        "type",
+        "build"
+      ],
+      "title": "PaperCoreManifest",
+      "type": "object"
+    },
     "PluginManifest": {
       "properties": {
         "provider": {
@@ -316,16 +349,19 @@
       "title": "Mc Version",
       "type": "string"
     },
-    "paper_build": {
-      "anyOf": [
-        {
-          "type": "string"
+    "core": {
+      "discriminator": {
+        "mapping": {
+          "paper": "#/$defs/PaperCoreManifest"
         },
+        "propertyName": "type"
+      },
+      "oneOf": [
         {
-          "type": "integer"
+          "$ref": "#/$defs/PaperCoreManifest"
         }
       ],
-      "title": "Paper Build"
+      "title": "Core"
     },
     "mods": {
       "default": [],
@@ -354,7 +390,7 @@
   },
   "required": [
     "mc_version",
-    "paper_build"
+    "core"
   ],
   "title": "Manifest",
   "type": "object"

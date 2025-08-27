@@ -112,9 +112,21 @@ class PluginManifest(AssetManifest):
 class DatapackManifest(AssetManifest):
     _type = AssetType.DATAPACK
 
+class CoreManifest(BaseModel):
+    pass
+
+class PaperCoreManifest(CoreManifest):
+    type: Literal["paper"]
+    build: Literal["latest"] | int
+
+Core = Annotated[
+    Union[PaperCoreManifest],
+    Field(discriminator="type"),
+]
+
 class Manifest(BaseModel):
     mc_version: str
-    paper_build: str | int
+    core: Core
 
     mods: list[ModManifest] = []
     plugins: list[PluginManifest] = []
@@ -122,13 +134,6 @@ class Manifest(BaseModel):
 
     class Config:
         frozen = True
-
-    @field_validator('paper_build')
-    @classmethod
-    def validate_paper_build(cls, v: str | int):
-        if isinstance(v, str) and v != "latest":
-            raise ValueError("paper_build must be number or 'latest'")
-        return v
     
     def get_asset(self, id: str):
         ls = self.mods + self.plugins + self.datapacks
