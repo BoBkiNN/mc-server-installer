@@ -46,5 +46,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MCSI-b.${GITHUB_RUN_NUMBER}
+          name: MCSI-b.${{github.run_number}}
           path: out/
