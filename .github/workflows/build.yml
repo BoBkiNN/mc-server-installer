@@ -56,6 +56,7 @@ jobs:
 
       - name: Build fat zipapp
         run: |
+          mkdir -p out
           python -m zipapp app -o out/mcsi-${BUILD_NUM}-fat-${{matrix.os_name}}.pyz -m main:main
 
       - name: Upload artifacts
