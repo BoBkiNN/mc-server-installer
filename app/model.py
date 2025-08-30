@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, HttpUrl, ValidationError
+from pydantic import BaseModel, Field, HttpUrl, ValidationError, model_validator
 from typing import Annotated, Union, Literal
 import yaml, json5, json
 from pathlib import Path
@@ -275,13 +275,19 @@ class PaperCoreCache(CoreCache):
         return f"paper-{self.build_number}"
 
 class Cache(BaseModel):
+    server_folder: Path
     mc_version: str
     assets: dict[str, AssetCache] = {}
     core: CoreCache | None = None
 
+    @model_validator(mode="after")
+    def make_server_folder_absolute(self) -> "Cache":
+        self.server_folder = self.server_folder.resolve()
+        return self
+
     @staticmethod
-    def create(mf: Manifest):
-        return Cache(mc_version=mf.mc_version)
+    def create(mf: Manifest, folder: Path):
+        return Cache(server_folder=folder, mc_version=mf.mc_version)
 
     @staticmethod
     def load(file: Path):

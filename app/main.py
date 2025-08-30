@@ -23,7 +23,7 @@ def millis():
 class CacheStore:
     def __init__(self, file: Path, mf: Manifest, debug: bool, folder: Path) -> None:
         self.mf = mf
-        self.cache = Cache.create(mf)
+        self.cache = Cache.create(mf, folder)
         self.logger = logging.getLogger("Cache")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
         self.file = file
@@ -39,7 +39,7 @@ class CacheStore:
         self.dirty = False
     
     def reset(self):
-        self.cache = Cache.create(self.mf)
+        self.cache = Cache.create(self.mf, self.folder)
         self.logger.debug("Cache reset.")
     
     def load(self):
@@ -54,7 +54,12 @@ class CacheStore:
             self.reset()
             return
         if self.cache.mc_version and self.cache.mc_version != self.mf.mc_version:
-            self.logger.info(f"Resetting cache due to changed minecraft version {self.cache.mc_version}->{self.mf.mc_version}")
+            self.logger.info(f"Resetting cache due to changed minecraft version {self.cache.mc_version} -> {self.mf.mc_version}")
+            self.reset()
+        abs_folder = self.folder.resolve()
+        if self.cache.server_folder != abs_folder:
+            self.logger.warning(f"Server folder differs from cache: {self.cache.server_folder} -> {abs_folder}")
+            self.logger.warning("This might mean that all cached data is invalid in current new location, so resetting")
             self.reset()
     
     def invalidate_asset(self, asset: str | AssetManifest):
@@ -62,8 +67,9 @@ class CacheStore:
         removed = self.cache.assets.pop(id, None)
         if removed:
             for p in removed.files:
-                if p.is_file():
-                    os.remove(self.folder / p)
+                stored_file = self.cache.server_folder / p
+                if stored_file.is_file():
+                    os.remove(stored_file)
             self.logger.info(f"💥 Invalidated asset {id}")
             self.dirty = True
     
