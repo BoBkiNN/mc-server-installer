@@ -4,7 +4,6 @@ from github.Artifact import Artifact
 from github.Repository import Repository
 from github.WorkflowRun import WorkflowRun
 from github.GitRelease import GitRelease
-from abc import ABC
 import click, logging, sys
 import requests
 import tqdm
@@ -15,6 +14,7 @@ import re
 import modrinth
 import time
 import papermc_fill as papermc
+import colorlog
 
 
 def millis():
@@ -495,10 +495,18 @@ class Installer:
         self.logger.info(f"✅ Installed {len(customs)} custom asset(s)")
 
 
-LOG_FORMATTER = logging.Formatter(
-    '[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',
-    datefmt='%H:%M:%S'
+
+LOG_FORMATTER = colorlog.ColoredFormatter(
+    '%(log_color)s[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',
+    datefmt='%H:%M:%S',
+    log_colors={
+        "DEBUG": "light_cyan",
+        "WARNING": "light_yellow",
+        "ERROR": "light_red"
+    }
 )
+
+
 
 def setup_logging(debug: bool):
     logger = logging.getLogger()  # Root logger

@@ -2,3 +2,4 @@ pydantic
 PyGithub
 click
 json5
+colorlog
