@@ -232,7 +232,7 @@ class Manifest(BaseModel):
         except ValidationError as e:
             raise ValueError("Failed to load manifest") from e
 
-class FilesInstallation(BaseModel):
+class FilesCache(BaseModel):
     update_time: int
     """UNIX epoch in millis"""
     files: list[Path]
@@ -245,7 +245,7 @@ class FilesInstallation(BaseModel):
                 return False
         return True
 
-class AssetInstallation(FilesInstallation):
+class AssetCache(FilesCache):
     asset_id: str
     asset_hash: str
 
@@ -257,17 +257,17 @@ class AssetInstallation(FilesInstallation):
         return self.check_files(folder)
     
     @staticmethod
-    def create(asset_id: str, hash: str, update_time: int, files: list[Path]) -> "AssetInstallation":
-        return AssetInstallation(asset_id=asset_id, asset_hash=hash, update_time=update_time, files=files)
+    def create(asset_id: str, hash: str, update_time: int, files: list[Path]) -> "AssetCache":
+        return AssetCache(asset_id=asset_id, asset_hash=hash, update_time=update_time, files=files)
 
-class CoreInstallation(FilesInstallation):
+class CoreCache(FilesCache):
     version_hash: str # used for latest checking
     type: str
 
     def display_name(self) -> str:
         return f"{self.type}-({self.version_hash})"
 
-class PaperCoreInstallation(CoreInstallation):
+class PaperCoreCache(CoreCache):
     build_number: int
     type: str = "paper"
 
@@ -276,8 +276,8 @@ class PaperCoreInstallation(CoreInstallation):
 
 class Cache(BaseModel):
     mc_version: str
-    assets: dict[str, AssetInstallation] = {}
-    core: CoreInstallation | None = None
+    assets: dict[str, AssetCache] = {}
+    core: CoreCache | None = None
 
     @staticmethod
     def create(mf: Manifest):

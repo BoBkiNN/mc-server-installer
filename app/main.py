@@ -80,7 +80,7 @@ class CacheStore:
             self.invalidate_asset(id)
             return None
     
-    def store_asset(self, asset: AssetInstallation):
+    def store_asset(self, asset: AssetCache):
         self.cache.assets[asset.asset_id] = asset
         self.dirty = True
     
@@ -100,7 +100,7 @@ class CacheStore:
             self.dirty = True
             self.logger.info("⚠  Core invalidated")
     
-    def store_core(self, core: CoreInstallation):
+    def store_core(self, core: CoreCache):
         self.cache.core = core
         self.dirty = True
     
@@ -383,7 +383,7 @@ class Installer:
         self.assets.clear_temp()
         self.session.close()
     
-    def install_paper_core(self, core: PaperCoreManifest) -> CoreInstallation:
+    def install_paper_core(self, core: PaperCoreManifest) -> CoreCache:
         api = papermc.PaperMcFill(self.session)
         mc = self.manifest.mc_version
         build: papermc.Build | None
@@ -410,7 +410,7 @@ class Installer:
         out = self.folder / jar_name
         self.assets.download_file(api.session, str(download.url), out)
         vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
-        return PaperCoreInstallation(update_time=millis(), files=[Path(jar_name)], version_hash=vhash, build_number=build.id)
+        return PaperCoreCache(update_time=millis(), files=[Path(jar_name)], version_hash=vhash, build_number=build.id)
         
 
     def install_core(self):
@@ -420,7 +420,7 @@ class Installer:
             self.logger.info(f"⏩ Skipping core as it already installed")
             return cache
         self.logger.info(f"🔄 Downloading core {core.display_name()}..")
-        i: CoreInstallation
+        i: CoreCache
         if isinstance(core, PaperCoreManifest):
             i = self.install_paper_core(core)
         else:
@@ -428,7 +428,7 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
     
-    def install(self, asset: AssetManifest) -> AssetInstallation:
+    def install(self, asset: AssetManifest) -> AssetCache:
         provider = asset.provider
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
@@ -458,7 +458,7 @@ class Installer:
         
         # TODO post-download steps here
         files = [p.relative_to(self.folder) if not p.is_absolute() else p for p in ls]
-        result = AssetInstallation.create(asset_id, asset_hash, millis(), files)
+        result = AssetCache.create(asset_id, asset_hash, millis(), files)
         self.cache.store_asset(result)
         return result
     
