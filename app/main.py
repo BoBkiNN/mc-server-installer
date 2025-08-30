@@ -18,6 +18,7 @@ from github.Artifact import Artifact
 from github.GitRelease import GitRelease
 from github.Repository import Repository
 from github.WorkflowRun import WorkflowRun
+from github.Workflow import Workflow
 from model import *
 
 
@@ -150,6 +151,28 @@ class DownloadOptions:
             raise ValueError(f"provider {provider.type} requires version to be specified in manifest")
         return self.version
 
+@dataclass
+class DownloadData(ABC):
+    files: list[Path]
+
+    def create_cache(self) -> FilesCache:
+        return FilesCache(update_time=millis(), files=self.files)
+
+@dataclass
+class GithubReleaseData(DownloadData):
+    repo: Repository
+    release: GitRelease
+
+@dataclass
+class GithubActionsData(DownloadData):
+    repo: Repository
+    workflow: Workflow
+    run: WorkflowRun
+
+@dataclass
+class ModrinthData(DownloadData):
+    versions: list[modrinth.Version]
+
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
         self.game_version = manifest.mc_version
@@ -231,7 +254,6 @@ class AssetInstaller:
             session.headers["Accept"] = "application/octet-stream"
         self.download_file(session, url, out_path)
 
-    # TODO return some type of DownloadData instead of plain list
     def download_github_release(self, provider: GithubReleasesProvider, 
                                 options: DownloadOptions):
         self.debug(f"Getting repository {provider.repository}")
@@ -246,16 +268,16 @@ class AssetInstaller:
         assets = release.get_assets()
         m = {a.name: a for a in assets}
         names = options.selector.find_targets(list(m))
-        ret: list[Path] = []
+        files: list[Path] = []
         for k, v in m.items():
             if k not in names: continue
             outPath = options.folder / k
             self.info(f"🌐 Downloading artifact {k} to {outPath}..")
             self.download_github_file(v.url, outPath, True)
             # v.download_asset(str(outPath.resolve())) # type: ignore
-            ret.append(outPath)
-        self.info(f"✅ Downloaded {len(ret)} assets from release")
-        return ret
+            files.append(outPath)
+        self.info(f"✅ Downloaded {len(files)} assets from release")
+        return GithubReleaseData(files, repo, release)
     
     def download_github_actions(self, provider: GithubActionsProvider, 
                                          options: DownloadOptions):
@@ -280,7 +302,7 @@ class AssetInstaller:
             artifacts = [a for a in ls if pattern.search(a.name)]
         if len(artifacts) == 0:
             self.logger.warning(f"⚠ No artifacts found in run {run.id}")
-        ret: list[Path] = []
+        files: list[Path] = []
         for artifact in artifacts:
             tmp = self.get_temp_file()
             self.info(f"🌐 Downloading artifact {artifact.name} to {tmp}..")
@@ -292,11 +314,11 @@ class AssetInstaller:
                 for name in targets:
                     self.info(f"Extracting {name}")
                     zf.extract(name, path=options.folder)
-                    ret.append(options.folder / name)
+                    files.append(options.folder / name)
                     c += 1
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             self.remove_temp_file(tmp)
-        return ret
+        return GithubActionsData(files, repo, workflow, run)
     
     def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
         if provider.version_is_id:
@@ -340,18 +362,18 @@ class AssetInstaller:
             file = download_version(ver)
             if file:
                 self.info(f"✅ Downloaded latest version {ver.name}")
-                return [file]
+                return ModrinthData([file], [ver])
             else:
                 raise ValueError(f"Failed to download version {ver.name}. See errors above for details")
-        ret: list[Path] = []
+        files: list[Path] = []
         for ver in filtered:
             file = download_version(ver)
             if file:
-                ret.append(file)
-        if not ret:
+                files.append(file)
+        if not files:
             raise ValueError(f"No valid versions found out of {len(filtered)}")
-        self.info(f"✅ Downloaded {len(ret)} files")
-        return ret
+        self.info(f"✅ Downloaded {len(files)} files")
+        return ModrinthData(files, filtered)
     
     def download_direct_url(self, provider: DirectUrlProvider,
                                 options: DownloadOptions):
@@ -365,7 +387,7 @@ class AssetInstaller:
                 name = path.split("/")[-1]
         out = options.folder / name
         self.download_file(requests.Session(), str(provider.url), out)
-        return [out]
+        return DownloadData([out])
 
 
 class Installer:
@@ -454,20 +476,20 @@ class Installer:
         options = DownloadOptions(asset, asset.version, target_folder, selector)
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
-        ls: list[Path]
+        d_data: DownloadData
         if isinstance(provider, GithubReleasesProvider):
-            ls = self.assets.download_github_release(provider, options)
+            d_data = self.assets.download_github_release(provider, options)
         elif isinstance(provider, GithubActionsProvider):
-            ls = self.assets.download_github_actions(provider, options)
+            d_data = self.assets.download_github_actions(provider, options)
         elif isinstance(provider, ModrinthProvider):
-            ls = self.assets.download_modrinth(provider, options)
+            d_data = self.assets.download_modrinth(provider, options)
         elif isinstance(provider, DirectUrlProvider):
-            ls = self.assets.download_direct_url(provider, options)
+            d_data = self.assets.download_direct_url(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
         
         # TODO post-download steps here
-        files = [p.relative_to(self.folder) if not p.is_absolute() else p for p in ls]
+        files = [p.relative_to(self.folder) if not p.is_absolute() else p for p in d_data.files]
         result = AssetCache.create(asset_id, asset_hash, millis(), files)
         self.cache.store_asset(result)
         return result
