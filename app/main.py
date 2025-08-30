@@ -152,7 +152,7 @@ class DownloadOptions:
         return self.version
 
 @dataclass
-class DownloadData(ABC):
+class DownloadData:
     files: list[Path]
 
     def create_cache(self) -> FilesCache:
