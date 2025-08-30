@@ -141,13 +141,21 @@ class DownloadOptions:
         return self.version
 
 class AssetInstaller:
-    def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger) -> None:
+    def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
         self.game_version = manifest.mc_version
         self.auth = auth
         self.temp_folder = temp_folder
         self.logger = logger
-        self.github = Github(auth=Auth.Token(auth.github)) if auth.github else Github()
-        self.modrinth = modrinth.Modrinth()
+        _user_agent: str | bytes = session.headers["User-Agent"]
+        if isinstance(_user_agent, bytes):
+            user_agent = _user_agent.decode("utf-8")
+        elif isinstance(_user_agent, str):
+            user_agent = _user_agent
+        else:
+            raise ValueError("Unknown user-agent")
+        self.session= session
+        self.github = Github(auth=Auth.Token(auth.github) if auth.github else None, user_agent=user_agent)
+        self.modrinth = modrinth.Modrinth(session)
         self.temp_files: list[Path] = []
         self.repo_cache: dict[str, Repository] = {}
     
@@ -206,6 +214,7 @@ class AssetInstaller:
     
     def download_github_file(self, url: str, out_path: Path, is_binary: bool = False):
         session = requests.Session()
+        session.headers.update(self.session.headers)
         if self.auth.github:
             session.headers["Authorization"] = f"token {self.auth.github}"
         if is_binary:
@@ -356,8 +365,10 @@ class Installer:
         self.folder = server_folder
         self.auth = auth
         self.logger = logging.getLogger("Installer")
+        self.session = requests.Session()
+        self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
         self.cache = CacheStore(self.folder / ".install_cache.json", manifest, debug, self.folder)
-        self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger)
+        self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger, self.session)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
@@ -370,9 +381,10 @@ class Installer:
     def shutdown(self):
         self.cache.save()
         self.assets.clear_temp()
+        self.session.close()
     
     def install_paper_core(self, core: PaperCoreManifest) -> CoreInstallation:
-        api = papermc.PaperMcFill()
+        api = papermc.PaperMcFill(self.session)
         mc = self.manifest.mc_version
         build: papermc.Build | None
         if core.build == PaperLatestBuild.LATEST:
