@@ -125,14 +125,6 @@ class CacheStore:
         return cached
 
 
-class FileSelector(ABC):
-    def find_targets(self, ls: list[str]) -> list[str]:
-        ...
-
-class SimpleJarSelector(FileSelector):
-    def find_targets(self, ls: list[str]) -> list[str]:
-        return [i for i in ls if i.endswith(".jar") and not i.endswith("-sources.jar") and not i.endswith("-api.jar")]
-
 class Authorizaition(BaseModel):
     github: str | None = None
 
@@ -424,10 +416,8 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
     
-    # TODO get rid of DownloadOptions in favor of AssetManifest.
-    # With this there will be ability to get asset destination folder using depending on manifest type
-    def install(self, provider: AssetProvider, options: DownloadOptions) -> AssetInstallation:
-        asset = options.asset
+    def install(self, asset: AssetManifest) -> AssetInstallation:
+        provider = asset.provider
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
         cached = self.cache.check_asset(asset_id, asset_hash)
@@ -436,6 +426,12 @@ class Installer:
             return cached
         
         self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
+        asset_folder = asset.get_base_folder()
+        target_folder = asset_folder if asset_folder.is_absolute() else self.folder / asset_folder
+        selector = provider.create_file_selector()
+        options = DownloadOptions(asset, asset.version, target_folder, selector)
+        if not target_folder.exists():
+            target_folder.mkdir(parents=True, exist_ok=True)
         ls: list[Path]
         if isinstance(provider, GithubReleasesProvider):
             ls = self.assets.download_github_release(provider, options)
@@ -453,27 +449,6 @@ class Installer:
         result = AssetInstallation.create(asset_id, asset_hash, millis(), files)
         self.cache.store_asset(result)
         return result
-
-    def install_mod(self, mod: ModManifest):
-        
-        options = DownloadOptions(mod, mod.version, self.mods_folder,
-                                  SimpleJarSelector())
-        self.install(mod.provider, options)
-    
-    def install_plugin(self, plugin: PluginManifest):
-        options = DownloadOptions(plugin, plugin.version, self.plugins_folder,
-                                  SimpleJarSelector())
-        self.install(plugin.provider, options)
-    
-    def install_custom(self, custom: CustomManifest):
-        if custom.folder.is_absolute():
-            folder = custom.folder
-        else:
-            folder = self.folder / custom.folder
-        folder.mkdir(parents=True, exist_ok=True)
-        options = DownloadOptions(custom, custom.version, folder,
-                                  SimpleJarSelector())
-        self.install(custom.provider, options)
     
     def install_mods(self):
         mods = self.manifest.mods
@@ -481,7 +456,7 @@ class Installer:
         self.logger.info(f"🔄 Installing {len(mods)} mod(s)")
         self.mods_folder.mkdir(parents=True, exist_ok=True)
         for mod in mods:
-            self.install_mod(mod)
+            self.install(mod)
         self.logger.info(f"✅ Installed {len(mods)} mod(s)")
     
     def install_plugins(self):
@@ -490,7 +465,7 @@ class Installer:
         self.logger.info(f"🔄 Installing {len(plugins)} plugin(s)")
         self.plugins_folder.mkdir(parents=True, exist_ok=True)
         for plugin in self.manifest.plugins:
-            self.install_plugin(plugin)
+            self.install(plugin)
         self.logger.info(f"✅ Installed {len(plugins)} plugin(s)")
     
     def install_customs(self):
@@ -498,7 +473,7 @@ class Installer:
         if not customs: return
         self.logger.info(f"🔄 Installing {len(customs)} custom asset(s)")
         for custom in self.manifest.customs:
-            self.install_custom(custom)
+            self.install(custom)
         self.logger.info(f"✅ Installed {len(customs)} custom asset(s)")
 
 

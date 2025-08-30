@@ -49,11 +49,6 @@
           ],
           "title": "Asset Id"
         },
-        "folder": {
-          "format": "path",
-          "title": "Folder",
-          "type": "string"
-        },
         "version": {
           "anyOf": [
             {
@@ -65,6 +60,11 @@
           ],
           "default": null,
           "title": "Version"
+        },
+        "folder": {
+          "format": "path",
+          "title": "Folder",
+          "type": "string"
         }
       },
       "required": [
@@ -114,10 +114,15 @@
           ],
           "default": null,
           "title": "Asset Id"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
         }
       },
       "required": [
-        "provider"
+        "provider",
+        "version"
       ],
       "title": "DatapackManifest",
       "type": "object"
@@ -131,6 +136,18 @@
           "minLength": 1,
           "title": "Url",
           "type": "string"
+        },
+        "file_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Name"
         },
         "type": {
           "const": "url",
