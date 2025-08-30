@@ -1,10 +1,11 @@
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import Optional, TypeVar
 
 from pydantic import AnyUrl, AwareDatetime, BaseModel, ValidationError
-from requests import Session, Response
-from dataclasses import dataclass
+from requests import Response, Session
+
 
 class Channel(Enum):
     ALPHA = 'ALPHA'

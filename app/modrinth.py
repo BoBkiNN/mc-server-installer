@@ -1,8 +1,10 @@
 from enum import Enum
-from pydantic import BaseModel, ValidationError
-from requests import Session
 from typing import TypeVar
 from urllib.parse import urlencode
+
+from pydantic import BaseModel, ValidationError
+from requests import Session
+
 
 class BuildInfo(BaseModel):
     comp_date: str

@@ -1,20 +1,24 @@
-from model import *
-from github import Github, Auth
-from github.Artifact import Artifact
-from github.Repository import Repository
-from github.WorkflowRun import WorkflowRun
-from github.GitRelease import GitRelease
-import click, logging, sys
+import logging
+import os
+import re
+import sys
+import time
+import uuid
+from dataclasses import dataclass
+from zipfile import ZipFile
+
+import click
+import colorlog
+import modrinth
+import papermc_fill as papermc
 import requests
 import tqdm
-from zipfile import ZipFile
-import uuid, os
-from dataclasses import dataclass
-import re
-import modrinth
-import time
-import papermc_fill as papermc
-import colorlog
+from github import Auth, Github
+from github.Artifact import Artifact
+from github.GitRelease import GitRelease
+from github.Repository import Repository
+from github.WorkflowRun import WorkflowRun
+from model import *
 
 
 def millis():
