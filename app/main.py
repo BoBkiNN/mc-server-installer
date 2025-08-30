@@ -159,7 +159,7 @@ class AssetInstaller:
             user_agent = _user_agent
         else:
             raise ValueError("Unknown user-agent")
-        self.session= session
+        self.session = session
         self.github = Github(auth=Auth.Token(auth.github) if auth.github else None, user_agent=user_agent)
         self.modrinth = modrinth.Modrinth(session)
         self.temp_files: list[Path] = []
