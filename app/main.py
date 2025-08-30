@@ -513,7 +513,7 @@ def setup_logging(debug: bool):
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
     # Create console handler
-    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler = colorlog.StreamHandler(sys.stdout)
 
     console_handler.setFormatter(LOG_FORMATTER)
 
