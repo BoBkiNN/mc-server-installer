@@ -1,7 +1,7 @@
-from typing import Annotated, Any, Type
+from typing import Annotated, Any, Type, Literal
 
 from pydantic import BaseModel
-from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
+from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue, JsonSchemaMode
 from pydantic_core import core_schema
 from registry import *
 
@@ -12,6 +12,11 @@ class RegistriesGenerateJsonSchema(GenerateJsonSchema):
 
     def get_registries(self) -> Registries:
         ...
+    
+    def generate(self, schema: core_schema.CoreSchema, mode: JsonSchemaMode = 'validation'):
+       v = super().generate(schema, mode)
+       v["$schema"] = GenerateJsonSchema.schema_dialect
+       return v
 
     @classmethod
     def __class_getitem__(cls, item: Registries):
