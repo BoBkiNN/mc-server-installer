@@ -3,3 +3,4 @@ PyGithub
 click
 json5
 colorlog
+asteval

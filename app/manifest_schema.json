@@ -61,6 +61,33 @@
           "default": null,
           "title": "Version"
         },
+        "caching": {
+          "default": true,
+          "title": "Caching",
+          "type": "boolean"
+        },
+        "actions": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dummy": "#/$defs/DummyAction",
+                "rename": "#/$defs/RenameFile"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DummyAction"
+              },
+              {
+                "$ref": "#/$defs/RenameFile"
+              }
+            ]
+          },
+          "title": "Actions",
+          "type": "array"
+        },
         "folder": {
           "format": "path",
           "title": "Folder",
@@ -118,6 +145,33 @@
         "version": {
           "title": "Version",
           "type": "string"
+        },
+        "caching": {
+          "default": true,
+          "title": "Caching",
+          "type": "boolean"
+        },
+        "actions": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dummy": "#/$defs/DummyAction",
+                "rename": "#/$defs/RenameFile"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DummyAction"
+              },
+              {
+                "$ref": "#/$defs/RenameFile"
+              }
+            ]
+          },
+          "title": "Actions",
+          "type": "array"
         }
       },
       "required": [
@@ -163,6 +217,38 @@
         "type"
       ],
       "title": "DirectUrlProvider",
+      "type": "object"
+    },
+    "DummyAction": {
+      "properties": {
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "if": {
+          "default": "",
+          "title": "If",
+          "type": "string"
+        },
+        "type": {
+          "const": "dummy",
+          "enum": [
+            "dummy"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "expr": {
+          "title": "Expr",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "expr"
+      ],
+      "title": "DummyAction",
       "type": "object"
     },
     "GithubActionsProvider": {
@@ -276,6 +362,33 @@
         "version": {
           "title": "Version",
           "type": "string"
+        },
+        "caching": {
+          "default": true,
+          "title": "Caching",
+          "type": "boolean"
+        },
+        "actions": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dummy": "#/$defs/DummyAction",
+                "rename": "#/$defs/RenameFile"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DummyAction"
+              },
+              {
+                "$ref": "#/$defs/RenameFile"
+              }
+            ]
+          },
+          "title": "Actions",
+          "type": "array"
         }
       },
       "required": [
@@ -441,6 +554,33 @@
         "version": {
           "title": "Version",
           "type": "string"
+        },
+        "caching": {
+          "default": true,
+          "title": "Caching",
+          "type": "boolean"
+        },
+        "actions": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dummy": "#/$defs/DummyAction",
+                "rename": "#/$defs/RenameFile"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DummyAction"
+              },
+              {
+                "$ref": "#/$defs/RenameFile"
+              }
+            ]
+          },
+          "title": "Actions",
+          "type": "array"
         }
       },
       "required": [
@@ -449,6 +589,42 @@
       ],
       "title": "PluginManifest",
       "type": "object"
+    },
+    "RenameFile": {
+      "description": "Renames primary file",
+      "properties": {
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "if": {
+          "default": "",
+          "title": "If",
+          "type": "string"
+        },
+        "type": {
+          "const": "rename",
+          "enum": [
+            "rename"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "to": {
+          "$ref": "#/$defs/TemplateExpr"
+        }
+      },
+      "required": [
+        "type",
+        "to"
+      ],
+      "title": "RenameFile",
+      "type": "object"
+    },
+    "TemplateExpr": {
+      "title": "TemplateExpr",
+      "type": "string"
     },
     "VersionType": {
       "enum": [

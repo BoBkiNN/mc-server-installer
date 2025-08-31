@@ -19,6 +19,8 @@ from github.GitRelease import GitRelease
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
+from asteval import Interpreter
+from asteval.astutils import ExceptionHolder
 from model import *
 from model import FilesCache
 
@@ -163,9 +165,24 @@ class DownloadOptions:
             raise ValueError(f"provider {provider.type} requires version to be specified in manifest")
         return self.version
 
+# TODO primary file field. If there are no primary file set, returned first from all files
 @dataclass
 class DownloadData:
     files: list[Path]
+
+    @property
+    def first_file(self):
+        if self.files:
+            return self.files[0]
+        else:
+            return None
+    
+    @first_file.setter
+    def first_file(self, file: Path):
+        if self.files:
+            self.files[0] = file
+        else:
+            self.files.append(file)
 
     def create_cache(self) -> FilesCache:
         return FilesCache(files=self.files)
@@ -175,8 +192,12 @@ class GithubReleaseData(DownloadData):
     repo: Repository
     release: GitRelease
 
+    @property
+    def tag_name(self):
+        return self.release.tag_name
+
     def create_cache(self) -> FilesCache:
-        return GithubReleaseCache(files=self.files, tag=self.release.tag_name)
+        return GithubReleaseCache(files=self.files, tag=self.tag_name)
 
 @dataclass
 class GithubActionsData(DownloadData):
@@ -193,6 +214,168 @@ class ModrinthData(DownloadData):
 
     def create_cache(self) -> FilesCache:
         return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
+
+
+def is_valid_path(path_str: str) -> bool:
+    try:
+        Path(path_str)  # will raise ValueError if fundamentally broken
+    except ValueError:
+        return False
+
+    if os.name == "nt":  # Windows-specific rules
+        # forbidden characters
+        if re.search(r'[<>:"/\\|?*]', path_str):
+            return False
+
+        # reserved names (case-insensitive)
+        reserved = {
+            "CON", "PRN", "AUX", "NUL",
+            *(f"COM{i}" for i in range(1, 10)),
+            *(f"LPT{i}" for i in range(1, 10)),
+        }
+        name = Path(path_str).stem.upper()
+        if name in reserved:
+            return False
+
+        # # path length (WinAPI limit is 260 by default)
+        # if len(path_str) >= 260:
+        #     return False
+
+    else:  # POSIX
+        # only forbidden character is null byte
+        if "\x00" in path_str:
+            return False
+
+    return True
+
+class ExpressionProcessor:
+    def __init__(self, logger: logging.Logger, folder: Path) -> None:
+        self.logger = logger
+        self.folder = folder
+        self.intpr = Interpreter(minimal=True)
+    
+    def log_error(self, error: ExceptionHolder, expr: Expr, source_key: str, source_text: str):
+        if not error.exc:
+            exc_name = "UnknownError"
+        else:
+            try:
+                exc_name = error.exc.__name__
+            except AttributeError:
+                exc_name = str(error.exc)
+            if exc_name in (None, 'None'):
+                exc_name = "UnknownError"
+        exc_msg = str(error.msg)
+
+        lineno = getattr(error.node, "lineno", 1) or 1
+        col = getattr(error.node, "col_offset", 0) or 0
+
+        # Extract offending line from source_text
+        src_lines = source_text.splitlines()
+        line_text = src_lines[lineno - 1] if 0 <= lineno - \
+            1 < len(src_lines) else ""
+
+        # Build caret marker
+        marker = " " * col + "^"
+
+        # Final pretty message
+        msg = (
+            f"💥 Failed to evaluate expression in {source_key}\n"
+            f"  Expression: {str(expr)!r}\n"
+            f"  {exc_name}: {exc_msg}\n"
+            f"  {line_text}\n"
+            f"  {marker} (line {lineno}, column {col})"
+        )
+        self.logger.error(msg)
+    
+    def eval(self, expr: Expr, source_key: str, source_text: str):
+        res = self.intpr.eval(expr)
+        errors: list[ExceptionHolder] = self.intpr.error
+        error = errors[0] if errors else None
+        if error is None:
+            return res
+        self.log_error(error, expr, source_key, source_text)
+        return error
+    
+    def eval_template(self, expr: TemplateExpr, source_key: str, source_text: str):
+        parts = expr.parts()
+        bs = ""
+        ei = 0
+        for part in parts:
+            if isinstance(part, Expr):
+                v = self.eval(part, source_key+f"${ei}", source_text)
+                if isinstance(v, ExceptionHolder):
+                    return v
+                bs += str(v)
+                ei += 1
+            else:
+                bs += part
+        return bs
+
+    def check_path(self, text: str) -> Path | None:
+        if is_valid_path(text):
+            return Path(text)
+        else:
+            return None
+        
+        
+    
+    def process(self, asset: AssetManifest, data: DownloadData):
+        ls = asset.actions
+        if not ls:
+            return data
+        self.intpr.symtable["data"] = data
+        self.intpr.symtable["d"] = data
+        self.intpr.symtable["asset"] = asset
+        self.intpr.symtable["a"] = asset
+        for n in ["data", "d", "asset", "a"]:
+            self.intpr.readonly_symbols.add(n)
+        for i, a in enumerate(ls):
+            key = f"actions[{i}]"
+            if_code = a.if_
+            if if_code:
+                v = self.eval(if_code, key+".if", str(if_code))
+                if isinstance(v, ExceptionHolder):
+                    self.logger.error("Failed to process if statement, see above errors for details")
+                    continue
+                if isinstance(v, bool):
+                    b = v
+                elif isinstance(v, int):
+                    b = bool(v)
+                elif isinstance(v, str):
+                    b = True if v.lower() == "true" else False
+                else:
+                    self.logger.warning(
+                        f"If statement in {key} returned non-bool. Expected True of False")
+                    b = True
+                if not b:
+                    continue
+            if isinstance(a, DummyAction):
+                v = self.eval(a.expr, key+".expr", str(a.expr))
+                if isinstance(v, ExceptionHolder):
+                    self.logger.error(
+                        "Failed to process expression, see above errors for details")
+                    continue
+                self.logger.info(f"Dummy expression at {key} returned {v}")
+            elif isinstance(a, RenameFile):
+                frp = data.first_file
+                if not frp:
+                    self.logger.error("No files to rename")
+                    continue
+                to = self.eval_template(a.to, key+".to", str(a.to))
+                if isinstance(to, ExceptionHolder):
+                    continue
+                top = frp.with_name(to)
+                if top.is_file():
+                    os.remove((self.folder / top).resolve())
+                frp.rename(top)
+                data.first_file = top
+                self.logger.info(f"✅ Renamed file from {frp} to {top}")
+            else:
+                self.logger.error(f"Unknown action {type(a)}({a.type})")
+
+
+    
+
 
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
@@ -426,6 +609,7 @@ class Installer:
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
         self.cache = CacheStore(self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
         self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger, self.session)
+        self.exprs = ExpressionProcessor(logging.getLogger("Expr"), self.folder)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
@@ -489,7 +673,7 @@ class Installer:
         provider = asset.provider
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
-        cached = self.cache.check_asset(asset_id, asset_hash)
+        cached = self.cache.check_asset(asset_id, asset_hash) if asset.caching else None
         if cached:
             self.logger.info(f"⏩ Skipping {asset.type.value} '{asset_id}' as it already installed")
             return cached
@@ -514,10 +698,13 @@ class Installer:
             raise ValueError(f"Unsupported provider {type(provider)}")
         d_data.files = [p.relative_to(
             self.folder) if not p.is_absolute() else p for p in d_data.files]
-        # TODO post-download steps here
+        
+        self.exprs.process(asset, d_data)
+
         cache = d_data.create_cache()
         result = AssetCache.create(asset_id, asset_hash, millis(), cache)
-        self.cache.store_asset(result)
+        if asset.caching:
+            self.cache.store_asset(result)
         return result
     
     def install_mods(self):

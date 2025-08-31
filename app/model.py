@@ -10,11 +10,10 @@ import yaml
 from modrinth import VersionType
 from papermc_fill import Channel as PaperChannel
 from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
-                      model_validator)
+                      model_validator, RootModel)
 from pydantic_core import core_schema, SchemaValidator
 from registry import *
 from regunion import RegistryUnion
-
 
 class FileSelector(ABC):
     def find_targets(self, ls: list[str]) -> list[str]:
@@ -113,11 +112,138 @@ Provider = Annotated[
 ]
 
 
+class Expr(str):
+    """Expression that returns some result (serialized as str)."""
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler) -> core_schema.CoreSchema:
+        return core_schema.str_schema()
+
+    def __repr__(self) -> str:
+        return f"Expr({self})"
+    
+    
+
+
+def parse_template_parts(s: str, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
+    """
+    Split template string `s` into a list of literal strings and Expr parts.
+    Expressions are delimited by `${{` ... `}}`.
+
+    Returns: list[str | Expr]
+    """
+    res: list[Union[str, Expr]] = []
+    n = len(s)
+    last = 0
+
+    while True:
+        pos = s.find("${{", last)
+        if pos == -1:
+            break
+        end = s.find("}}", pos + 3)
+        if end == -1:
+            # no closing -> stop and treat remainder as literal
+            break
+
+        # count backslashes immediately before pos
+        bs = 0
+        k = pos - 1
+        while k >= 0 and s[k] == "\\":
+            bs += 1
+            k -= 1
+
+        # prefix is everything from `last` up to the first of those backslashes
+        prefix = s[last: pos - bs]
+
+        expr_text = s[pos + 3: end]
+        token_literal = s[pos: end + 2]  # the whole `${{...}}`
+
+        if not interpret_escapes:
+            if prefix:
+                res.append(prefix)
+            res.append(Expr(expr_text))
+            last = end + 2
+            continue
+
+        # interpret escapes according to rules
+        if bs == 0:
+            # normal expression
+            if prefix:
+                res.append(prefix)
+            res.append(Expr(expr_text))
+        elif bs == 1:
+            # single backslash -> escape token, drop the backslash
+            if prefix:
+                res.append(prefix)
+            res.append(token_literal)
+        else:
+            # bs >= 2
+            kept = bs - 1
+            kept_bs = "\\" * kept
+            if bs % 2 == 0:
+                # even -> keep (bs-1) backslashes, then expression
+                if prefix or kept_bs:
+                    res.append(prefix + kept_bs)
+                res.append(Expr(expr_text))
+            else:
+                # odd -> keep (bs-1) backslashes, token treated as literal appended together
+                res.append(prefix + kept_bs + token_literal)
+
+        last = end + 2
+
+    # append the remainder
+    if last < n:
+        rest = s[last:]
+        if rest:
+            res.append(rest)
+
+    return res
+
+class TemplateExpr(RootModel):
+    root: str
+    _parts: list[str | Expr] = []
+
+    def __str__(self) -> str:
+        return self.root
+
+    def parts(self, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
+        return parse_template_parts(self.root, interpret_escapes)
+
+# if __name__ == "__main__":
+#     while True:
+#         i = input("Template: ")
+#         p = TemplateExpr(i).parts()
+#         print(p)
+#         for t in p:
+#          print(", ".join([str(ord(c)) for c in t]))
+
+class BaseAction(BaseModel):
+    name: str = ""
+    if_: Expr = Field("", alias="if")
+
+class DummyAction(BaseAction):
+    type: Literal["dummy"]
+    expr: Expr
+
+class RenameFile(BaseAction):
+    """Renames primary file"""
+    type: Literal["rename"]
+    to: TemplateExpr
+
+
+Action = Annotated[
+    Union[DummyAction, RenameFile],
+    Field(discriminator="type"),
+]
+
 class AssetManifest(BaseModel):
     provider: Provider
     asset_id: str | None = None
     """Asset id override"""
     version: str
+    caching: bool = True
+    actions: list[Action] = []
+    """List of actions to execute after download"""
 
     _asset_id: str | None = None  # cache
 
