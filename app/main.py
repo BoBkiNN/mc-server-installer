@@ -23,6 +23,7 @@ from asteval import Interpreter
 from asteval.astutils import ExceptionHolder
 from model import *
 from model import FilesCache
+from regunion import make_registry_schema_generator
 
 
 def millis():
@@ -772,7 +773,12 @@ def setup_logging(debug: bool):
 
 DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "manifest.json5", "manifest.jsonc"]
 
-@click.command()
+
+@click.group()
+def main():
+    pass
+
+@main.command()
 @click.option(
     "--manifest",
     type=click.Path(path_type=Path),
@@ -796,7 +802,7 @@ DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "man
     is_flag=True,
     help="Debug logging switch",
 )
-def main(manifest: Path | None, folder: Path, github_token: str | None, debug: bool):
+def install(manifest: Path | None, folder: Path, github_token: str | None, debug: bool):
     setup_logging(debug)
     mfp: Path
     if manifest is not None:
@@ -821,6 +827,25 @@ def main(manifest: Path | None, folder: Path, github_token: str | None, debug: b
     installer.install_plugins()
     installer.install_customs()
     installer.shutdown()
+
+@main.command
+@click.option(
+    "--out", "-o",
+    type=click.Path(path_type=Path),
+    default="manifest_schema.json",
+    help="Path where to store schema",
+)
+@click.option(
+    "--pretty", "-p",
+    is_flag=True,
+    help="Indent schema by 2 spaces",
+)
+def schema(out: Path, pretty: bool):
+    click.echo(f"Generating schema to {out}")
+    r = Manifest.model_json_schema(schema_generator=make_registry_schema_generator(ROOT_REGISTRY))
+    out.write_text(json.dumps(r, indent=2 if pretty else None))
+    click.echo("Done")
+
 
 if __name__ == "__main__":
     main()

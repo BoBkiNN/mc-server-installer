@@ -20,7 +20,8 @@
                 "--manifest",
                 "../run/manifest.json5",
                 "--folder",
-                "../run"
+                "../run",
+                "install"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/app"
@@ -29,7 +30,13 @@
             "name": "Generate schema",
             "type": "debugpy",
             "request": "launch",
-            "module": "generate_schema",
+            "module": "main",
+            "args": [
+                "schema",
+                "--out",
+                "../app/manifest_schema.json",
+                "-p"
+            ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/app"
         }
