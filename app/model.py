@@ -10,7 +10,7 @@ import yaml
 from modrinth import VersionType
 from papermc_fill import Channel as PaperChannel
 from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
-                      model_validator, ValidationInfo)
+                      model_validator)
 from pydantic_core import core_schema, SchemaValidator
 from registry import *
 from regunion import RegistryUnion
