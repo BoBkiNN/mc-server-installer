@@ -9,7 +9,6 @@ from zipfile import ZipFile
 
 import click
 import colorlog
-from model import FilesCache
 import modrinth
 import papermc_fill as papermc
 import requests
@@ -18,9 +17,10 @@ from github import Auth, Github
 from github.Artifact import Artifact
 from github.GitRelease import GitRelease
 from github.Repository import Repository
-from github.WorkflowRun import WorkflowRun
 from github.Workflow import Workflow
+from github.WorkflowRun import WorkflowRun
 from model import *
+from model import FilesCache
 
 
 def millis():
@@ -170,10 +170,6 @@ class DownloadData:
     def create_cache(self) -> FilesCache:
         return FilesCache(files=self.files)
 
-class GithubReleaseCache(FilesCache):
-    type: str = "github"
-    tag: str
-
 @dataclass
 class GithubReleaseData(DownloadData):
     repo: Repository
@@ -181,11 +177,6 @@ class GithubReleaseData(DownloadData):
 
     def create_cache(self) -> FilesCache:
         return GithubReleaseCache(files=self.files, tag=self.release.tag_name)
-
-class GithubActionsCache(FilesCache):
-    type: str = "github-actions"
-    run_id: int
-    run_number: int
 
 @dataclass
 class GithubActionsData(DownloadData):
@@ -195,11 +186,6 @@ class GithubActionsData(DownloadData):
 
     def create_cache(self) -> FilesCache:
         return GithubActionsCache(files=self.files, run_id=self.run.id, run_number=self.run.run_number)
-
-class ModrinthCache(FilesCache):
-    type: str = "modrinth"
-    version_id: str
-    version_number: str
 
 @dataclass
 class ModrinthData(DownloadData):
