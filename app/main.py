@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 import click
 import colorlog
+from model import FilesCache
 import modrinth
 import papermc_fill as papermc
 import requests
@@ -26,8 +27,9 @@ def millis():
     return int(time.time()*1000) 
 
 class CacheStore:
-    def __init__(self, file: Path, mf: Manifest, debug: bool, folder: Path) -> None:
+    def __init__(self, file: Path, mf: Manifest, registries: Registries, debug: bool, folder: Path) -> None:
         self.mf = mf
+        self.registries = registries
         self.cache = Cache.create(mf, folder)
         self.logger = logging.getLogger("Cache")
         self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -40,19 +42,29 @@ class CacheStore:
     def save(self):
         if not self.dirty:
             return
-        self.cache.save(self.file, self.debug)
+        self.cache.save(self.file, self.registries, self.debug)
         self.dirty = False
     
     def reset(self):
         self.cache = Cache.create(self.mf, self.folder)
         self.logger.debug("Cache reset.")
     
-    def load(self):
+    def load(self, registries: Registries):
         if not self.file.is_file():
             self.reset()
             return
         try:
-            self.cache = Cache.load(self.file)
+            self.cache, asset_errors = Cache.load(self.file, registries)
+            for k, error in asset_errors.items():
+                lines = []
+                for e in error.errors():
+                    loc = '.'.join(str(x) for x in e['loc'])
+                    msg = e['msg']
+                    inp = e["input"]
+                    type_ = e.get('type', 'unknown')
+                    lines.append(f"{k}.{loc} {msg} [type={type_}, input={inp}]")
+                t = "\n".join(lines)
+                self.logger.warning(f"Failed to load asset cache entry {k}: {t}")
             self.logger.debug(f"Loaded cache with {len(self.cache.assets)} assets")
         except Exception as e:
             self.logger.error("Exception loading stored cache. Resetting", exc_info=e)
@@ -71,7 +83,7 @@ class CacheStore:
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
         removed = self.cache.assets.pop(id, None)
         if removed:
-            for p in removed.files:
+            for p in removed.data.files:
                 stored_file = self.cache.server_folder / p
                 if stored_file.is_file():
                     os.remove(stored_file)
@@ -119,7 +131,7 @@ class CacheStore:
         cached = self.cache.core
         if not cached:
             return None
-        if not cached.check_files(self.folder):
+        if not cached.data.check_files(self.folder):
             self.logger.debug("Invalidating core due to invalid files")
             self.invalidate_core()
             return None
@@ -156,12 +168,24 @@ class DownloadData:
     files: list[Path]
 
     def create_cache(self) -> FilesCache:
-        return FilesCache(update_time=millis(), files=self.files)
+        return FilesCache(files=self.files)
+
+class GithubReleaseCache(FilesCache):
+    type: str = "github"
+    tag: str
 
 @dataclass
 class GithubReleaseData(DownloadData):
     repo: Repository
     release: GitRelease
+
+    def create_cache(self) -> FilesCache:
+        return GithubReleaseCache(files=self.files, tag=self.release.tag_name)
+
+class GithubActionsCache(FilesCache):
+    type: str = "github-actions"
+    run_id: int
+    run_number: int
 
 @dataclass
 class GithubActionsData(DownloadData):
@@ -169,9 +193,20 @@ class GithubActionsData(DownloadData):
     workflow: Workflow
     run: WorkflowRun
 
+    def create_cache(self) -> FilesCache:
+        return GithubActionsCache(files=self.files, run_id=self.run.id, run_number=self.run.run_number)
+
+class ModrinthCache(FilesCache):
+    type: str = "modrinth"
+    version_id: str
+    version_number: str
+
 @dataclass
 class ModrinthData(DownloadData):
-    versions: list[modrinth.Version]
+    version: modrinth.Version
+
+    def create_cache(self) -> FilesCache:
+        return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
 
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
@@ -339,7 +374,7 @@ class AssetInstaller:
             # ignoring mc version currently
             if provider.channel and provider.channel != ver.version_type:
                 continue
-            if provider.version_is_id and options.version != ver.version_number:
+            if provider.version_is_id and options.version != ver.id:
                 continue
             if name_pattern and not name_pattern.search(ver.name):
                 continue
@@ -347,6 +382,7 @@ class AssetInstaller:
         if len(filtered) == 0:
             raise ValueError("No valid versions found")
         def download_version(ver: modrinth.Version):
+            # TODO use_primary and file_name_pattern properties here to return multiple files
             primary = ver.get_primary()
             if not primary:
                 self.logger.warning(
@@ -356,24 +392,24 @@ class AssetInstaller:
             self.info(
                 f"🌐 Downloading primary file {primary.filename} from version '{ver.name}'")
             self.download_file(self.modrinth.session, str(primary.url), out)
-            return out
+            return [out]
         if options.version == "latest":
             ver = filtered[0]
-            file = download_version(ver)
-            if file:
+            files = download_version(ver)
+            if files:
                 self.info(f"✅ Downloaded latest version {ver.name}")
-                return ModrinthData([file], [ver])
+                return ModrinthData(files, ver)
             else:
                 raise ValueError(f"Failed to download version {ver.name}. See errors above for details")
-        files: list[Path] = []
-        for ver in filtered:
-            file = download_version(ver)
-            if file:
-                files.append(file)
+        # at this moment version is not latest and not an version id, so this is version_number
+        ver = next((v for v in filtered if v.version_number == options.version), None)
+        if not ver:
+            raise ValueError(f"Failed to find valid version with number {options.version} out of {len(filtered)}")
+        files = download_version(ver)
         if not files:
-            raise ValueError(f"No valid versions found out of {len(filtered)}")
+            raise ValueError(f"No valid files found in version {ver}")
         self.info(f"✅ Downloaded {len(files)} files")
-        return ModrinthData(files, filtered)
+        return ModrinthData(files, ver)
     
     def download_direct_url(self, provider: DirectUrlProvider,
                                 options: DownloadOptions):
@@ -391,7 +427,10 @@ class AssetInstaller:
 
 
 class Installer:
-    def __init__(self, manifest: Manifest, manifest_path: Path, server_folder: Path, auth: Authorizaition, debug: bool) -> None:
+    def __init__(self, manifest: Manifest, manifest_path: Path, 
+                 server_folder: Path, auth: Authorizaition, debug: bool,
+                 registries: Registries) -> None:
+        self.registries = registries
         self.manifest = manifest
         self.manifest_path = manifest_path
         self.folder = server_folder
@@ -399,13 +438,13 @@ class Installer:
         self.logger = logging.getLogger("Installer")
         self.session = requests.Session()
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
-        self.cache = CacheStore(self.folder / ".install_cache.json", manifest, debug, self.folder)
+        self.cache = CacheStore(self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
         self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger, self.session)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
     def prepare(self):
-        self.cache.load()
+        self.cache.load(self.registries)
         self.cache.check_all_assets(self.manifest)
         self.logger.info(
             f"✅ Prepared installer for MC {self.manifest.mc_version}")
@@ -442,7 +481,7 @@ class Installer:
         out = self.folder / jar_name
         self.assets.download_file(api.session, str(download.url), out)
         vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
-        return PaperCoreCache(update_time=millis(), files=[Path(jar_name)], version_hash=vhash, build_number=build.id)
+        return PaperCoreCache(update_time=millis(), data=FilesCache(files=[Path(jar_name)]), version_hash=vhash, build_number=build.id)
         
 
     def install_core(self):
@@ -487,10 +526,11 @@ class Installer:
             d_data = self.assets.download_direct_url(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
-        
+        d_data.files = [p.relative_to(
+            self.folder) if not p.is_absolute() else p for p in d_data.files]
         # TODO post-download steps here
-        files = [p.relative_to(self.folder) if not p.is_absolute() else p for p in d_data.files]
-        result = AssetCache.create(asset_id, asset_hash, millis(), files)
+        cache = d_data.create_cache()
+        result = AssetCache.create(asset_id, asset_hash, millis(), cache)
         self.cache.store_asset(result)
         return result
     
@@ -520,6 +560,13 @@ class Installer:
             self.install(custom)
         self.logger.info(f"✅ Installed {len(customs)} custom asset(s)")
 
+
+ROOT_REGISTRY = Registries()
+CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry("asset_cache", FilesCache)
+CACHES_REGISTRY.register("files", FilesCache)
+CACHES_REGISTRY.register("github", GithubReleaseCache)
+CACHES_REGISTRY.register("github-actions", GithubActionsCache)
+CACHES_REGISTRY.register("modrinth", ModrinthCache)
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
@@ -592,8 +639,8 @@ def main(manifest: Path | None, folder: Path, github_token: str | None, debug: b
             return
     
     auth = Authorizaition(github=github_token)
-    mf = Manifest.load(mfp)
-    installer = Installer(mf, mfp, folder, auth, debug)
+    mf = Manifest.load(mfp, ROOT_REGISTRY)
+    installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY)
     installer.logger.info(f"✅ Using manifest {mfp}")
     installer.prepare()
     installer.install_core()

@@ -10,7 +10,10 @@ import yaml
 from modrinth import VersionType
 from papermc_fill import Channel as PaperChannel
 from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
-                      model_validator)
+                      model_validator, ValidationInfo)
+from pydantic_core import core_schema, SchemaValidator
+from registry import *
+from regunion import RegistryUnion
 
 
 class FileSelector(ABC):
@@ -222,7 +225,7 @@ class Manifest(BaseModel):
         return None
     
     @staticmethod
-    def load(file: Path) -> "Manifest":
+    def load(file: Path, registries: "Registries") -> "Manifest":
         ext = file.name.split(".")[-1]
         with open(file, "r", encoding="utf-8") as f:
             if ext in ["json", "yml", "yaml"]:
@@ -232,14 +235,13 @@ class Manifest(BaseModel):
             else:
                 raise ValueError(f"Cannot find loader for manifest extension {ext}")
         try:
-            return Manifest.model_validate(d)
+            return Manifest.model_validate(d, context={REGISTRIES_CONTEXT_KEY: registries})
         except ValidationError as e:
-            raise ValueError("Failed to load manifest") from e
+            raise ValueError("Failed to load manifest") from e   
 
 class FilesCache(BaseModel):
-    update_time: int
-    """UNIX epoch in millis"""
     files: list[Path]
+    type: str = "files"
     """List of files after downloading and installation (no temporary files)"""
 
     def check_files(self, folder: Path):
@@ -249,22 +251,26 @@ class FilesCache(BaseModel):
                 return False
         return True
 
-class AssetCache(FilesCache):
+class AssetCache(BaseModel):
     asset_id: str
     asset_hash: str
+    update_time: int
+    data: Annotated[FilesCache, RegistryUnion("asset_cache")]
 
     def is_valid(self, folder: Path, hash: str | None):
         if hash is None: # asset removed from manifest
             return False
         if self.asset_hash != hash:
             return False
-        return self.check_files(folder)
+        return self.data.check_files(folder)
     
     @staticmethod
-    def create(asset_id: str, hash: str, update_time: int, files: list[Path]) -> "AssetCache":
-        return AssetCache(asset_id=asset_id, asset_hash=hash, update_time=update_time, files=files)
+    def create(asset_id: str, hash: str, update_time: int, cache: FilesCache) -> "AssetCache":
+        return AssetCache(asset_id=asset_id, asset_hash=hash, update_time=update_time, data=cache)
 
-class CoreCache(FilesCache):
+class CoreCache(BaseModel):
+    update_time: int
+    data: FilesCache
     version_hash: str # used for latest checking
     type: str
 
@@ -294,13 +300,36 @@ class Cache(BaseModel):
         return Cache(server_folder=folder, mc_version=mf.mc_version)
 
     @staticmethod
-    def load(file: Path):
+    def load(file: Path, registries: Registries):
         with open(file, "r", encoding="utf-8") as f:
-            d = json.load(f)
+            d: dict = json.load(f)
+        if not isinstance(d, dict):
+            raise ValueError("Loaded json is not a dict")
+        assets_schema = core_schema.dict_schema(
+            keys_schema=core_schema.str_schema(),
+            values_schema=core_schema.dict_schema()  # raw dicts for manual processing
+        )
+        ctx = {REGISTRIES_CONTEXT_KEY: registries}
+        v = SchemaValidator(assets_schema)
+        raw_assets: dict[str, dict] = v.validate_python(d.get("assets"),
+            context=ctx
+        )
+        assets: dict[str, AssetCache] = {}
+        errors: dict[str, ValidationError] = {}
+        for k, v in raw_assets.items():
+            try:
+                a = AssetCache.model_validate(
+                    v, context=ctx)
+                assets[k] = a
+            except ValidationError as e:
+                errors[k] = e
+        d["assets"] = assets
         try:
-            return Cache.model_validate(d)
+            return Cache.model_validate(d, context=ctx), errors
         except ValidationError as e:
             raise ValueError("Failed to load caches") from e
     
-    def save(self, file: Path, debug: bool = False):
-        file.write_text(self.model_dump_json(indent=2 if debug else None))
+    def save(self, file: Path, registries: Registries, debug: bool = False):
+        t = self.model_dump_json(indent=2 if debug else None, 
+                                 context={REGISTRIES_CONTEXT_KEY: registries})
+        file.write_text(t)
