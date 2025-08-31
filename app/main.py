@@ -64,7 +64,7 @@ class CacheStore:
                     type_ = e.get('type', 'unknown')
                     lines.append(f"{k}.{loc} {msg} [type={type_}, input={inp}]")
                 t = "\n".join(lines)
-                self.logger.warning(f"Failed to load asset cache entry {k}: {t}")
+                self.logger.warning(f"Failed to load asset cache entry {k}: \n{t}")
             self.logger.debug(f"Loaded cache with {len(self.cache.assets)} assets")
         except Exception as e:
             self.logger.error("Exception loading stored cache. Resetting", exc_info=e)
