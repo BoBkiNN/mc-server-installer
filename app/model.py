@@ -10,7 +10,7 @@ import yaml
 from modrinth import VersionType
 from papermc_fill import Channel as PaperChannel
 from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
-                      model_validator, RootModel)
+                      model_validator, RootModel, ConfigDict)
 from pydantic_core import core_schema, SchemaValidator
 from registry import *
 from regunion import RegistryUnion
@@ -35,6 +35,7 @@ class AssetProvider(BaseModel):
 
     class Config:
         frozen = True
+        use_attribute_docstrings = True
 
     def create_asset_id(self) -> str:
         """Returns asset id without versions. Do not invokes any IO"""
@@ -237,6 +238,7 @@ Action = Annotated[
 ]
 
 class AssetManifest(BaseModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
     provider: Provider
     asset_id: str | None = None
     """Asset id override"""
@@ -356,6 +358,7 @@ class Manifest(BaseModel):
 
     class Config:
         frozen = True
+        use_attribute_docstrings = True
 
     def get_asset(self, id: str):
         ls = self.mods + self.plugins + self.datapacks + self.customs
