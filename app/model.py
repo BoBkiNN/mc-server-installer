@@ -92,7 +92,7 @@ class ModrinthProvider(AssetProvider):
     """If not set, then channel is ignored"""
     version_is_id: bool = False
     """If true, than version is consumed as version id"""
-    version_name_pattern: str | None = None
+    version_name_pattern: re.Pattern | None = None
     """RegEx for version name"""
     ignore_game_version: bool = False
     type: Literal["modrinth"]
@@ -116,7 +116,7 @@ class GithubActionsProvider(AssetProvider):
     repository: str
     branch: str = "master"
     workflow: str
-    name_pattern: str | None = None
+    name_pattern: re.Pattern | None = None
     """RegEx for artifact name. All artifacts is downloaded if not set"""
     type: Literal["github-actions"]
     file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"

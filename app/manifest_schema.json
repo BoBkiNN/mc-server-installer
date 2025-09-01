@@ -322,6 +322,7 @@
         "name_pattern": {
           "anyOf": [
             {
+              "format": "regex",
               "type": "string"
             },
             {
@@ -510,6 +511,7 @@
         "version_name_pattern": {
           "anyOf": [
             {
+              "format": "regex",
               "type": "string"
             },
             {
@@ -731,8 +733,8 @@
     "RegistryKey__file_selectors": {
       "enum": [
         "pattern",
-        "simple-jar",
-        "all"
+        "all",
+        "simple-jar"
       ],
       "type": "string"
     },

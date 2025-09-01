@@ -548,8 +548,7 @@ class AssetInstaller:
         if not provider.name_pattern:
             artifacts = [a for a in ls]
         else:
-            pattern = re.compile(provider.name_pattern)
-            artifacts = [a for a in ls if pattern.search(a.name)]
+            artifacts = [a for a in ls if provider.name_pattern.search(a.name)]
         if len(artifacts) == 0:
             raise ValueError(f"⚠ No artifacts found in run {run.id}")
         files: list[Path] = []
@@ -582,7 +581,7 @@ class AssetInstaller:
         vers = self.modrinth.get_versions(provider.project_id, ["spigot", "paper"], game_versions)
         if not vers:
             raise ValueError(f"Cannot find versions for project {provider.project_id}")
-        name_pattern = re.compile(provider.version_name_pattern) if provider.version_name_pattern else None
+        name_pattern = provider.version_name_pattern
         filtered: list[modrinth.Version] = []
         self.debug(f"Got {len(vers)} versions from {project.title}")
         for ver in vers:
