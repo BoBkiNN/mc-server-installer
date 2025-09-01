@@ -759,15 +759,24 @@ class Installer:
         if not plugins: return
         self.logger.info(f"🔄 Installing {len(plugins)} plugin(s)")
         self.plugins_folder.mkdir(parents=True, exist_ok=True)
-        for plugin in self.manifest.plugins:
+        for plugin in plugins:
             self.install(plugin)
         self.logger.info(f"✅ Installed {len(plugins)} plugin(s)")
+    
+    def install_datapacks(self):
+        datapacks = self.manifest.plugins
+        if not datapacks:
+            return
+        self.logger.info(f"🔄 Installing {len(datapacks)} datapack(s)")
+        for dp in datapacks:
+            self.install(dp)
+        self.logger.info(f"✅ Installed {len(datapacks)} datapack(s)")
     
     def install_customs(self):
         customs = self.manifest.customs
         if not customs: return
         self.logger.info(f"🔄 Installing {len(customs)} custom asset(s)")
-        for custom in self.manifest.customs:
+        for custom in customs:
             self.install(custom)
         self.logger.info(f"✅ Installed {len(customs)} custom asset(s)")
 
@@ -862,6 +871,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     installer.install_core()
     installer.install_mods()
     installer.install_plugins()
+    installer.install_datapacks()
     installer.install_customs()
     installer.shutdown()
 

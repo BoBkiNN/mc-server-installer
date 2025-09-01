@@ -239,7 +239,7 @@ class UnzipFile(BaseAction):
     """Target folder. If not set, then folder where downloaded file is used"""
 
 Action = Annotated[
-    Union[DummyAction, RenameFile],
+    Union[DummyAction, RenameFile, UnzipFile],
     Field(discriminator="type"),
 ]
 

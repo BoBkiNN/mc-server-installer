@@ -73,7 +73,8 @@
             "discriminator": {
               "mapping": {
                 "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile"
+                "rename": "#/$defs/RenameFile",
+                "unzip": "#/$defs/UnzipFile"
               },
               "propertyName": "type"
             },
@@ -83,6 +84,9 @@
               },
               {
                 "$ref": "#/$defs/RenameFile"
+              },
+              {
+                "$ref": "#/$defs/UnzipFile"
               }
             ]
           },
@@ -161,7 +165,8 @@
             "discriminator": {
               "mapping": {
                 "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile"
+                "rename": "#/$defs/RenameFile",
+                "unzip": "#/$defs/UnzipFile"
               },
               "propertyName": "type"
             },
@@ -171,6 +176,9 @@
               },
               {
                 "$ref": "#/$defs/RenameFile"
+              },
+              {
+                "$ref": "#/$defs/UnzipFile"
               }
             ]
           },
@@ -381,7 +389,8 @@
             "discriminator": {
               "mapping": {
                 "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile"
+                "rename": "#/$defs/RenameFile",
+                "unzip": "#/$defs/UnzipFile"
               },
               "propertyName": "type"
             },
@@ -391,6 +400,9 @@
               },
               {
                 "$ref": "#/$defs/RenameFile"
+              },
+              {
+                "$ref": "#/$defs/UnzipFile"
               }
             ]
           },
@@ -578,7 +590,8 @@
             "discriminator": {
               "mapping": {
                 "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile"
+                "rename": "#/$defs/RenameFile",
+                "unzip": "#/$defs/UnzipFile"
               },
               "propertyName": "type"
             },
@@ -588,6 +601,9 @@
               },
               {
                 "$ref": "#/$defs/RenameFile"
+              },
+              {
+                "$ref": "#/$defs/UnzipFile"
               }
             ]
           },
@@ -637,6 +653,38 @@
     "TemplateExpr": {
       "title": "TemplateExpr",
       "type": "string"
+    },
+    "UnzipFile": {
+      "description": "Unzips primary file. Supports .zip",
+      "properties": {
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "if": {
+          "default": "",
+          "title": "If",
+          "type": "string"
+        },
+        "type": {
+          "const": "unzip",
+          "enum": [
+            "unzip"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "folder": {
+          "$ref": "#/$defs/TemplateExpr",
+          "default": ""
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "UnzipFile",
+      "type": "object"
     },
     "VersionType": {
       "enum": [
