@@ -231,6 +231,11 @@ class RenameFile(BaseAction):
     type: Literal["rename"]
     to: TemplateExpr
 
+class UnzipFile(BaseAction):
+    """Unzips primary file. Supports .zip"""
+    type: Literal["unzip"]
+    folder: TemplateExpr = TemplateExpr("")
+    """Target folder. If not set, then folder where downloaded file is used"""
 
 Action = Annotated[
     Union[DummyAction, RenameFile],

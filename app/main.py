@@ -176,8 +176,10 @@ class DownloadData:
     def primary(self):
         if self.primary_file:
             return self.primary_file
-        else:
+        elif self.first_file:
             return self.first_file
+        else:
+            raise ValueError("No files set")
     
     @primary.setter
     def primary(self, file: Path):
@@ -337,6 +339,7 @@ class ExpressionProcessor:
             return None
         
     def handle(self, key: str, action: BaseAction, data: DownloadData):
+        # TODO return bool or enum stating error or ok
         if_code = action.if_
         if if_code:
             v = self.eval(if_code, key+".if", str(if_code))
@@ -376,6 +379,20 @@ class ExpressionProcessor:
             frp.rename(top)
             data.primary = top
             self.logger.info(f"✅ Renamed file from {frp} to {top}")
+        elif isinstance(action, UnzipFile):
+            if action.folder.root:
+                folder = self.eval_template(action.folder, key+".folder", action.folder.root)
+                if isinstance(folder, ExceptionHolder):
+                    return
+            else:
+                pf = data.primary.parent
+                if pf.is_absolute():
+                    folder = pf
+                else:
+                    folder = self.folder / data.primary.parent
+            with ZipFile(self.folder / data.primary, "r") as zip_ref:
+                zip_ref.extractall(folder)
+            self.logger.info(f"✅ Unzipped {data.primary} into {folder}")
         else:
             raise ValueError(f"Unknown action {type(action)}")
     
