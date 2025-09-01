@@ -1,9 +1,9 @@
 import hashlib
 import json
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Union, TypeAlias
 from dataclasses import dataclass
 
 import json5
@@ -15,26 +15,52 @@ from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
 from pydantic_core import core_schema, SchemaValidator
 from registry import *
 from regunion import RegistryUnion, RegistryKey
+import re
 
-# TODO put defaults in registry
-class FileSelector(ABC):
+class FileSelector(ABC, BaseModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
+
+    @abstractmethod
     def find_targets(self, ls: list[str]) -> list[str]:
         ...
 
 
 class AllFilesSelector(FileSelector):
+    type: Literal["all"] = "all"
+
     def find_targets(self, ls: list[str]) -> list[str]:
         return ls
 
 
 class SimpleJarSelector(FileSelector):
+    type: Literal["simple-jar"] = "simple-jar"
+
     def find_targets(self, ls: list[str]) -> list[str]:
         return [i for i in ls if i.endswith(".jar") and not i.endswith("-sources.jar") and not i.endswith("-api.jar")]
 
+class RegexFileSelector(FileSelector):
+    """Uses RegEx pattern to filter files"""
+    type: Literal["pattern"] = "pattern"
+    pattern: re.Pattern
+    mode: Literal["full"] | Literal["search"] = "search"
+    """Regex mode. <br>
+    search - part of path must match pattern.<br>
+    full - path must fully match pattern"""
+
+    def find_targets(self, ls: list[str]) -> list[str]:
+        p = self.pattern
+        func = p.fullmatch if self.mode == "full" else p.search
+        return [f for f in ls if func(f)]
+
+
+FileSelectorKey: TypeAlias = Annotated[str, RegistryKey(
+    "file_selectors"), Field(title="FileSelectorKey")]
+FileSelectorUnion: TypeAlias = Annotated[FileSelector, RegistryUnion(
+    "file_selectors"), Field(title="FileSelectorUnion")]
 
 class AssetProvider(BaseModel):
     # TODO fallback providers
-    file_selector: Annotated[str, RegistryKey("file_selectors")] = "all"
+    file_selector: FileSelectorKey | FileSelectorUnion = "all"
     """Selector used to choose files from multiple"""
 
     class Config:
@@ -49,10 +75,14 @@ class AssetProvider(BaseModel):
         reg = registries.get_registry(FileSelector)
         if not reg:
             raise ValueError("No file selector registry")
-        sel = reg.get(self.file_selector)
-        if not sel:
-            raise ValueError(f"Unknown file selector type {self.file_selector!r}")
-        return sel
+        if isinstance(self.file_selector, str):
+            sel = reg.get(self.file_selector)
+            if not sel:
+                raise ValueError(f"Unknown file selector type {self.file_selector!r}")
+            return sel.model_validate({})
+        else:
+            return self.file_selector
+
 
 
 class ModrinthProvider(AssetProvider):
@@ -75,7 +105,7 @@ class GithubReleasesProvider(AssetProvider):
     """Downloads asset from github"""
     repository: str
     type: Literal["github"]
-    file_selector: Annotated[str, RegistryKey("file_selectors")] = "simple_jar"
+    file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
 
     def create_asset_id(self) -> str:
         return self.repository
@@ -89,7 +119,7 @@ class GithubActionsProvider(AssetProvider):
     name_pattern: str | None = None
     """RegEx for artifact name. All artifacts is downloaded if not set"""
     type: Literal["github-actions"]
-    file_selector: Annotated[str, RegistryKey("file_selectors")] = "simple_jar"
+    file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
 
     def create_asset_id(self) -> str:
         return self.repository+"/"+self.workflow+"@"+self.branch

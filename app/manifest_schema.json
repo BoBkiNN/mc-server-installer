@@ -1,5 +1,20 @@
 {
   "$defs": {
+    "AllFilesSelector": {
+      "properties": {
+        "type": {
+          "const": "all",
+          "default": "all",
+          "enum": [
+            "all"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "AllFilesSelector",
+      "type": "object"
+    },
     "Channel": {
       "enum": [
         "ALPHA",
@@ -197,14 +212,17 @@
       "description": "Downloads asset from specified url",
       "properties": {
         "file_selector": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistryKey__file_selectors"
+            },
+            {
+              "$ref": "#/$defs/RegistryUnion__file_selectors"
+            }
+          ],
           "default": "all",
           "description": "Selector used to choose files from multiple",
-          "enum": [
-            "all",
-            "simple_jar"
-          ],
-          "title": "RegistryKey[file_selectors]",
-          "type": "string"
+          "title": "File Selector"
         },
         "url": {
           "format": "uri",
@@ -277,13 +295,16 @@
       "description": "Downloads artifact from github actions",
       "properties": {
         "file_selector": {
-          "default": "simple_jar",
-          "enum": [
-            "all",
-            "simple_jar"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistryKey__file_selectors"
+            },
+            {
+              "$ref": "#/$defs/RegistryUnion__file_selectors"
+            }
           ],
-          "title": "RegistryKey[file_selectors]",
-          "type": "string"
+          "default": "simple-jar",
+          "title": "File Selector"
         },
         "repository": {
           "title": "Repository",
@@ -332,13 +353,16 @@
       "description": "Downloads asset from github",
       "properties": {
         "file_selector": {
-          "default": "simple_jar",
-          "enum": [
-            "all",
-            "simple_jar"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistryKey__file_selectors"
+            },
+            {
+              "$ref": "#/$defs/RegistryUnion__file_selectors"
+            }
           ],
-          "title": "RegistryKey[file_selectors]",
-          "type": "string"
+          "default": "simple-jar",
+          "title": "File Selector"
         },
         "repository": {
           "title": "Repository",
@@ -449,14 +473,17 @@
       "description": "Downloads asset from modrinth",
       "properties": {
         "file_selector": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistryKey__file_selectors"
+            },
+            {
+              "$ref": "#/$defs/RegistryUnion__file_selectors"
+            }
+          ],
           "default": "all",
           "description": "Selector used to choose files from multiple",
-          "enum": [
-            "all",
-            "simple_jar"
-          ],
-          "title": "RegistryKey[file_selectors]",
-          "type": "string"
+          "title": "File Selector"
         },
         "project_id": {
           "title": "Project Id",
@@ -656,6 +683,80 @@
       "title": "PluginManifest",
       "type": "object"
     },
+    "RegexFileSelector": {
+      "description": "Uses RegEx pattern to filter files",
+      "properties": {
+        "type": {
+          "const": "pattern",
+          "default": "pattern",
+          "enum": [
+            "pattern"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "pattern": {
+          "format": "regex",
+          "title": "Pattern",
+          "type": "string"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "const": "full",
+              "enum": [
+                "full"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "search",
+              "enum": [
+                "search"
+              ],
+              "type": "string"
+            }
+          ],
+          "default": "search",
+          "description": "Regex mode. <br>\nsearch - part of path must match pattern.<br>\nfull - path must fully match pattern",
+          "title": "Mode"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "title": "RegexFileSelector",
+      "type": "object"
+    },
+    "RegistryKey__file_selectors": {
+      "enum": [
+        "pattern",
+        "simple-jar",
+        "all"
+      ],
+      "type": "string"
+    },
+    "RegistryUnion__file_selectors": {
+      "discriminator": {
+        "mapping": {
+          "all": "#/$defs/AllFilesSelector",
+          "pattern": "#/$defs/RegexFileSelector",
+          "simple-jar": "#/$defs/SimpleJarSelector"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AllFilesSelector"
+        },
+        {
+          "$ref": "#/$defs/SimpleJarSelector"
+        },
+        {
+          "$ref": "#/$defs/RegexFileSelector"
+        }
+      ]
+    },
     "RenameFile": {
       "description": "Renames primary file",
       "properties": {
@@ -686,6 +787,21 @@
         "to"
       ],
       "title": "RenameFile",
+      "type": "object"
+    },
+    "SimpleJarSelector": {
+      "properties": {
+        "type": {
+          "const": "simple-jar",
+          "default": "simple-jar",
+          "enum": [
+            "simple-jar"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "SimpleJarSelector",
       "type": "object"
     },
     "TemplateExpr": {

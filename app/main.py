@@ -796,14 +796,15 @@ class Installer:
 
 ROOT_REGISTRY = Registries()
 CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry("asset_cache", FilesCache)
-CACHES_REGISTRY.register("files", FilesCache)
-CACHES_REGISTRY.register("github", GithubReleaseCache)
-CACHES_REGISTRY.register("github-actions", GithubActionsCache)
-CACHES_REGISTRY.register("modrinth", ModrinthCache)
-CACHES_REGISTRY.register("core/paper", PaperCoreCache)
-FILE_SELECTORS = ROOT_REGISTRY.create_registry("file_selectors", FileSelector)
-FILE_SELECTORS.register("all", AllFilesSelector())
-FILE_SELECTORS.register("simple_jar", SimpleJarSelector())
+CACHES_REGISTRY.register_model(FilesCache)
+CACHES_REGISTRY.register_model(GithubReleaseCache)
+CACHES_REGISTRY.register_model(GithubActionsCache)
+CACHES_REGISTRY.register_model(ModrinthCache)
+CACHES_REGISTRY.register_model(PaperCoreCache)
+FILE_SELECTORS = ROOT_REGISTRY.create_model_registry("file_selectors", FileSelector)
+FILE_SELECTORS.register_model(AllFilesSelector)
+FILE_SELECTORS.register_model(SimpleJarSelector)
+FILE_SELECTORS.register_model(RegexFileSelector)
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(

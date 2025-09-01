@@ -39,9 +39,10 @@ class RegistryUnion:
     >>> Annotated[Animal, RegistryUnion("animals")]
     """
 
-    def __init__(self, registry_key: str, discriminator: str = "type"):
+    def __init__(self, registry_key: str, discriminator: str = "type", add_ref: bool = True):
         self.registry_key = registry_key
         self.discriminator = discriminator
+        self.ref = f"RegistryUnion__{registry_key}" if add_ref else None
 
     def __get_pydantic_core_schema__(self, source: Type[Any], handler
                                      ) -> core_schema.CoreSchema:
@@ -71,7 +72,9 @@ class RegistryUnion:
                             self.discriminator,), input=key, ctx={"expected": str(keys)})
                     ])
             return model.model_validate(value, context=info.context)
-        return core_schema.with_info_after_validator_function(union_validator, core_schema.any_schema(),)
+        return core_schema.with_info_after_validator_function(union_validator, 
+                                                              core_schema.any_schema(),
+                                                              ref=self.ref)
 
     def __get_pydantic_json_schema__(self, schema: core_schema.CoreSchema, handler
                                      ) -> JsonSchemaValue:
@@ -99,7 +102,8 @@ class RegistryUnion:
         ret_schema = core_schema.tagged_union_schema(
             tagged_choices,
             self.discriminator,
-            metadata=schema.get("metadata", None)
+            metadata=schema.get("metadata", None),
+            ref=self.ref
         )
         return handler(ret_schema)
 
@@ -109,11 +113,12 @@ class RegistryKey:
     >>> Annotated[str, RegistryKey("animals")]
     """
 
-    def __init__(self, registry_key: str):
+    def __init__(self, registry_key: str, add_ref: bool = True):
         self.registry_key = registry_key
+        self.ref = f"RegistryKey__{registry_key}" if add_ref else None
 
     def __get_pydantic_core_schema__(self, source: Type[Any], handler) -> core_schema.CoreSchema:
-        return core_schema.str_schema()
+        return core_schema.str_schema(ref=self.ref)
 
     def __get_pydantic_json_schema__(self, schema: core_schema.CoreSchema, handler) -> JsonSchemaValue:
         generate = getattr(handler, "generate_json_schema", None)
@@ -136,12 +141,17 @@ class RegistryKey:
 
         keys = list(registry.keys())
         # sch = core_schema.enum_schema(str, keys, sub_type="str")
-        # return handler(sch)
-        return {
-            "type": "string",
-            "enum": keys,
-            "title": f"RegistryKey[{self.registry_key}]"
-        }
+        # sch = core_schema.union_schema([
+        #     core_schema.str_schema(),
+        #     core_schema.literal_schema(keys)
+        # ], ref=self.ref)
+        sch = core_schema.literal_schema(keys, ref=self.ref)
+        return handler(sch)
+        # return {
+        #     "type": "string",
+        #     "enum": keys,
+        #     "title": f"RegistryKey[{self.registry_key}]"
+        # }
 
 if __name__ == "__main__":
     import json

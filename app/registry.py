@@ -53,6 +53,16 @@ class ModelRegistry(Generic[M], Registry[type[M]]):
         if not model:
             return None
         return model.model_validate(data, context={REGISTRIES_CONTEXT_KEY: root})
+    
+    def register_model(self, t: type[M], discriminator: str = "type"):
+        field = t.model_fields.get(discriminator)
+        if not field:
+            raise ValueError(
+                f"Missing discriminator {discriminator!r} in model {t}")
+        key = field.default
+        if not key:
+            raise ValueError(f"No default value for {discriminator!r} in model provided to use as key")
+        self.register(str(key), t)
 
 
 class Registries(Registry[Registry]):
