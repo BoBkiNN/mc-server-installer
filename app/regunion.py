@@ -130,7 +130,7 @@ class RegistryKey:
         if not registries:
             return {"type": "string", "title": f"RegistryEnum[{self.registry_key}]"}
 
-        registry = registries.get_model_registry(self.registry_key)
+        registry = registries.get(self.registry_key)
         if not registry:
             raise ValueError(f"Unknown registry {self.registry_key}")
 

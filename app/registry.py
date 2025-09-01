@@ -65,6 +65,12 @@ class Registries(Registry[Registry]):
         self.registry_types[key] = t
         self.register(key, reg)
         return reg
+    
+    def create_registry(self, key: str, t: type[T]) -> Registry[T]:
+        reg = Registry[t](t)
+        self.registry_types[key] = t
+        self.register(key, reg)
+        return reg
 
     def get_registry(self, t: type[T]) -> Registry[T] | None:
         for r in self.all().values():

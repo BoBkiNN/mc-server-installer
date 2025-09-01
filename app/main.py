@@ -719,7 +719,7 @@ class Installer:
         self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
         asset_folder = asset.get_base_folder()
         target_folder = asset_folder if asset_folder.is_absolute() else self.folder / asset_folder
-        selector = provider.create_file_selector()
+        selector = provider.create_file_selector(self.registries)
         options = DownloadOptions(asset, asset.version, target_folder, selector)
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
@@ -787,6 +787,9 @@ CACHES_REGISTRY.register("files", FilesCache)
 CACHES_REGISTRY.register("github", GithubReleaseCache)
 CACHES_REGISTRY.register("github-actions", GithubActionsCache)
 CACHES_REGISTRY.register("modrinth", ModrinthCache)
+FILE_SELECTORS = ROOT_REGISTRY.create_registry("file_selectors", FileSelector)
+FILE_SELECTORS.register("all", AllFilesSelector())
+FILE_SELECTORS.register("simple_jar", SimpleJarSelector())
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(

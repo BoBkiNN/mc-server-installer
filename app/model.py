@@ -13,7 +13,7 @@ from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
                       model_validator, RootModel, ConfigDict)
 from pydantic_core import core_schema, SchemaValidator
 from registry import *
-from regunion import RegistryUnion
+from regunion import RegistryUnion, RegistryKey
 
 # TODO put defaults in registry
 class FileSelector(ABC):
@@ -33,6 +33,8 @@ class SimpleJarSelector(FileSelector):
 
 class AssetProvider(BaseModel):
     # TODO fallback providers
+    file_selector: Annotated[str, RegistryKey("file_selectors")] = "all"
+    """Selector used to choose files from multiple"""
 
     class Config:
         frozen = True
@@ -42,8 +44,14 @@ class AssetProvider(BaseModel):
         """Returns asset id without versions. Do not invokes any IO"""
         ...
 
-    def create_file_selector(self) -> FileSelector:
-        return AllFilesSelector()
+    def create_file_selector(self, registries: Registries) -> FileSelector:
+        reg = registries.get_registry(FileSelector)
+        if not reg:
+            raise ValueError("No file selector registry")
+        sel = reg.get(self.file_selector)
+        if not sel:
+            raise ValueError(f"Unknown file selector type {self.file_selector!r}")
+        return sel
 
 
 class ModrinthProvider(AssetProvider):
@@ -66,12 +74,10 @@ class GithubReleasesProvider(AssetProvider):
     """Downloads asset from github"""
     repository: str
     type: Literal["github"]
+    file_selector: Annotated[str, RegistryKey("file_selectors")] = "simple_jar"
 
     def create_asset_id(self) -> str:
         return self.repository
-
-    def create_file_selector(self) -> FileSelector:
-        return SimpleJarSelector()
 
 
 class GithubActionsProvider(AssetProvider):
@@ -82,12 +88,10 @@ class GithubActionsProvider(AssetProvider):
     name_pattern: str | None = None
     """RegEx for artifact name. All artifacts is downloaded if not set"""
     type: Literal["github-actions"]
+    file_selector: Annotated[str, RegistryKey("file_selectors")] = "simple_jar"
 
     def create_asset_id(self) -> str:
         return self.repository+"/"+self.workflow+"@"+self.branch
-
-    def create_file_selector(self) -> FileSelector:
-        return SimpleJarSelector()
 
 
 class DirectUrlProvider(AssetProvider):

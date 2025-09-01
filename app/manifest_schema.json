@@ -196,6 +196,16 @@
     "DirectUrlProvider": {
       "description": "Downloads asset from specified url",
       "properties": {
+        "file_selector": {
+          "default": "all",
+          "description": "Selector used to choose files from multiple",
+          "enum": [
+            "simple_jar",
+            "all"
+          ],
+          "title": "RegistryEnum[file_selectors]",
+          "type": "string"
+        },
         "url": {
           "format": "uri",
           "maxLength": 2083,
@@ -266,6 +276,15 @@
     "GithubActionsProvider": {
       "description": "Downloads artifact from github actions",
       "properties": {
+        "file_selector": {
+          "default": "simple_jar",
+          "enum": [
+            "simple_jar",
+            "all"
+          ],
+          "title": "RegistryEnum[file_selectors]",
+          "type": "string"
+        },
         "repository": {
           "title": "Repository",
           "type": "string"
@@ -312,6 +331,15 @@
     "GithubReleasesProvider": {
       "description": "Downloads asset from github",
       "properties": {
+        "file_selector": {
+          "default": "simple_jar",
+          "enum": [
+            "simple_jar",
+            "all"
+          ],
+          "title": "RegistryEnum[file_selectors]",
+          "type": "string"
+        },
         "repository": {
           "title": "Repository",
           "type": "string"
@@ -420,6 +448,16 @@
     "ModrinthProvider": {
       "description": "Downloads asset from modrinth",
       "properties": {
+        "file_selector": {
+          "default": "all",
+          "description": "Selector used to choose files from multiple",
+          "enum": [
+            "simple_jar",
+            "all"
+          ],
+          "title": "RegistryEnum[file_selectors]",
+          "type": "string"
+        },
         "project_id": {
           "title": "Project Id",
           "type": "string"
