@@ -272,6 +272,9 @@ class AssetManifest(BaseModel):
 
     def get_base_folder(self) -> Path:
         ...
+    
+    def get_manifest_group(self) -> str:
+        ...
 
 
 class ModManifest(AssetManifest):
@@ -279,6 +282,9 @@ class ModManifest(AssetManifest):
 
     def get_base_folder(self) -> Path:
         return Path("mods")
+    
+    def get_manifest_group(self) -> str:
+        return "mods"
 
 
 class PluginManifest(AssetManifest):
@@ -286,6 +292,9 @@ class PluginManifest(AssetManifest):
 
     def get_base_folder(self) -> Path:
         return Path("plugins")
+    
+    def get_manifest_group(self) -> str:
+        return "plugins"
 
 
 class DatapackManifest(AssetManifest):
@@ -293,6 +302,9 @@ class DatapackManifest(AssetManifest):
 
     def get_base_folder(self) -> Path:
         return Path("world") / "datapacks"
+    
+    def get_manifest_group(self) -> str:
+        return "datapacks"
 
 
 class CustomManifest(AssetManifest):

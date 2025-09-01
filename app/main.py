@@ -318,7 +318,48 @@ class ExpressionProcessor:
         else:
             return None
         
-        
+    def handle(self, key: str, action: BaseAction, data: DownloadData):
+        if_code = action.if_
+        if if_code:
+            v = self.eval(if_code, key+".if", str(if_code))
+            if isinstance(v, ExceptionHolder):
+                self.logger.error("Failed to process if statement, see above errors for details")
+                return
+            if isinstance(v, bool):
+                b = v
+            elif isinstance(v, int):
+                b = bool(v)
+            elif isinstance(v, str):
+                b = True if v.lower() == "true" else False
+            else:
+                self.logger.warning(
+                    f"If statement in {key} returned non-bool. Expected True of False")
+                b = True
+            if not b:
+                return
+        if isinstance(action, DummyAction):
+            v = self.eval(action.expr, key+".expr", str(action.expr))
+            if isinstance(v, ExceptionHolder):
+                self.logger.error(
+                    "Failed to process expression, see above errors for details")
+                return
+            self.logger.info(f"Dummy expression at {key} returned {v}")
+        elif isinstance(action, RenameFile):
+            frp = data.first_file
+            if not frp:
+                self.logger.error("No files to rename")
+                return
+            to = self.eval_template(action.to, key+".to", str(action.to))
+            if isinstance(to, ExceptionHolder):
+                return
+            top = frp.with_name(to)
+            if top.is_file():
+                os.remove((self.folder / top).resolve())
+            frp.rename(top)
+            data.first_file = top
+            self.logger.info(f"✅ Renamed file from {frp} to {top}")
+        else:
+            raise ValueError(f"Unknown action {type(action)}")
     
     def process(self, asset: AssetManifest, data: DownloadData):
         ls = asset.actions
@@ -330,49 +371,14 @@ class ExpressionProcessor:
         self.intpr.symtable["a"] = asset
         for n in ["data", "d", "asset", "a"]:
             self.intpr.readonly_symbols.add(n)
+        ak = asset.get_manifest_group()+"."+asset.resolve_asset_id()
         for i, a in enumerate(ls):
-            key = f"actions[{i}]"
-            if_code = a.if_
-            if if_code:
-                v = self.eval(if_code, key+".if", str(if_code))
-                if isinstance(v, ExceptionHolder):
-                    self.logger.error("Failed to process if statement, see above errors for details")
-                    continue
-                if isinstance(v, bool):
-                    b = v
-                elif isinstance(v, int):
-                    b = bool(v)
-                elif isinstance(v, str):
-                    b = True if v.lower() == "true" else False
-                else:
-                    self.logger.warning(
-                        f"If statement in {key} returned non-bool. Expected True of False")
-                    b = True
-                if not b:
-                    continue
-            if isinstance(a, DummyAction):
-                v = self.eval(a.expr, key+".expr", str(a.expr))
-                if isinstance(v, ExceptionHolder):
-                    self.logger.error(
-                        "Failed to process expression, see above errors for details")
-                    continue
-                self.logger.info(f"Dummy expression at {key} returned {v}")
-            elif isinstance(a, RenameFile):
-                frp = data.first_file
-                if not frp:
-                    self.logger.error("No files to rename")
-                    continue
-                to = self.eval_template(a.to, key+".to", str(a.to))
-                if isinstance(to, ExceptionHolder):
-                    continue
-                top = frp.with_name(to)
-                if top.is_file():
-                    os.remove((self.folder / top).resolve())
-                frp.rename(top)
-                data.first_file = top
-                self.logger.info(f"✅ Renamed file from {frp} to {top}")
-            else:
-                self.logger.error(f"Unknown action {type(a)}({a.type})")
+            key = f"{ak}.actions[{i}]"
+            try:
+                self.handle(key, a, data)
+            except Exception as e:
+                self.logger.error(f"Failed to handle action {type(a)} at {key}", exc_info=e)
+            
 
 
     
