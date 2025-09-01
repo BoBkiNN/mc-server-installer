@@ -512,7 +512,7 @@ class AssetInstaller:
             pattern = re.compile(provider.name_pattern)
             artifacts = [a for a in ls if pattern.search(a.name)]
         if len(artifacts) == 0:
-            self.logger.warning(f"⚠ No artifacts found in run {run.id}")
+            raise ValueError(f"⚠ No artifacts found in run {run.id}")
         files: list[Path] = []
         for artifact in artifacts:
             tmp = self.get_temp_file()
