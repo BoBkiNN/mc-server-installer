@@ -166,6 +166,7 @@ class DownloadOptions:
             raise ValueError(f"provider {provider.type} requires version to be specified in manifest")
         return self.version
 
+# Probably shit class
 @dataclass(kw_only=True)
 class DownloadData:
     files: list[Path]
