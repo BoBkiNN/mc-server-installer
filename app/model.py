@@ -15,6 +15,7 @@ from pydantic_core import core_schema, SchemaValidator
 from registry import *
 from regunion import RegistryUnion
 
+# TODO put defaults in registry
 class FileSelector(ABC):
     def find_targets(self, ls: list[str]) -> list[str]:
         ...
