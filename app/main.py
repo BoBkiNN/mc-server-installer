@@ -398,10 +398,6 @@ class ExpressionProcessor:
                 self.logger.error(f"Failed to handle action {type(a)} at {key}", exc_info=e)
             
 
-
-    
-
-
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
         self.game_version = manifest.mc_version
