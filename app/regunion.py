@@ -128,7 +128,7 @@ class RegistryKey:
             registries = schema.get("metadata", {}).get("registries")
 
         if not registries:
-            return {"type": "string", "title": f"RegistryEnum[{self.registry_key}]"}
+            return {"type": "string", "title": f"RegistryKey[{self.registry_key}]"}
 
         registry = registries.get(self.registry_key)
         if not registry:
@@ -140,7 +140,7 @@ class RegistryKey:
         return {
             "type": "string",
             "enum": keys,
-            "title": f"RegistryEnum[{self.registry_key}]"
+            "title": f"RegistryKey[{self.registry_key}]"
         }
 
 if __name__ == "__main__":

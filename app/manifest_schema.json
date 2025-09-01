@@ -200,10 +200,10 @@
           "default": "all",
           "description": "Selector used to choose files from multiple",
           "enum": [
-            "simple_jar",
-            "all"
+            "all",
+            "simple_jar"
           ],
-          "title": "RegistryEnum[file_selectors]",
+          "title": "RegistryKey[file_selectors]",
           "type": "string"
         },
         "url": {
@@ -279,10 +279,10 @@
         "file_selector": {
           "default": "simple_jar",
           "enum": [
-            "simple_jar",
-            "all"
+            "all",
+            "simple_jar"
           ],
-          "title": "RegistryEnum[file_selectors]",
+          "title": "RegistryKey[file_selectors]",
           "type": "string"
         },
         "repository": {
@@ -334,10 +334,10 @@
         "file_selector": {
           "default": "simple_jar",
           "enum": [
-            "simple_jar",
-            "all"
+            "all",
+            "simple_jar"
           ],
-          "title": "RegistryEnum[file_selectors]",
+          "title": "RegistryKey[file_selectors]",
           "type": "string"
         },
         "repository": {
@@ -452,10 +452,10 @@
           "default": "all",
           "description": "Selector used to choose files from multiple",
           "enum": [
-            "simple_jar",
-            "all"
+            "all",
+            "simple_jar"
           ],
-          "title": "RegistryEnum[file_selectors]",
+          "title": "RegistryKey[file_selectors]",
           "type": "string"
         },
         "project_id": {
