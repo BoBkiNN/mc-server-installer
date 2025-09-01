@@ -104,7 +104,7 @@ class CacheStore:
         if not entry:
             return None
         actual_hash_str = None if hash is None else hash[:7]+".."
-        self.logger.debug(f"Checking cached asset {entry.asset_id}({entry.asset_hash[:7]}..) with actual {actual_hash_str}")
+        self.logger.debug(f"Checking cached asset {entry.asset_id} {entry.asset_hash[:7]}.. with actual {actual_hash_str}")
         state = entry.is_valid(self.folder, hash)
         if state.is_ok():
             return entry
