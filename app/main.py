@@ -4,7 +4,7 @@ import re
 import sys
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, InitVar
 from zipfile import ZipFile
 
 import click
@@ -166,10 +166,27 @@ class DownloadOptions:
             raise ValueError(f"provider {provider.type} requires version to be specified in manifest")
         return self.version
 
-# TODO primary file field. If there are no primary file set, returned first from all files
-@dataclass
+@dataclass(kw_only=True)
 class DownloadData:
     files: list[Path]
+    primary_file: Path | None = None
+
+    @property
+    def primary(self):
+        if self.primary_file:
+            return self.primary_file
+        else:
+            return self.first_file
+    
+    @primary.setter
+    def primary(self, file: Path):
+        if self.primary_file:
+            self.primary_file = file
+        else:
+            self.first_file = file
+    
+    def unset_primary(self):
+        self.primary_file = None
 
     @property
     def first_file(self):
@@ -345,7 +362,7 @@ class ExpressionProcessor:
                 return
             self.logger.info(f"Dummy expression at {key} returned {v}")
         elif isinstance(action, RenameFile):
-            frp = data.first_file
+            frp = data.primary
             if not frp:
                 self.logger.error("No files to rename")
                 return
@@ -356,7 +373,7 @@ class ExpressionProcessor:
             if top.is_file():
                 os.remove((self.folder / top).resolve())
             frp.rename(top)
-            data.first_file = top
+            data.primary = top
             self.logger.info(f"✅ Renamed file from {frp} to {top}")
         else:
             raise ValueError(f"Unknown action {type(action)}")
@@ -488,7 +505,7 @@ class AssetInstaller:
             # v.download_asset(str(outPath.resolve())) # type: ignore
             files.append(outPath)
         self.info(f"✅ Downloaded {len(files)} assets from release")
-        return GithubReleaseData(files, repo, release)
+        return GithubReleaseData(repo, release, files=files)
     
     def download_github_actions(self, provider: GithubActionsProvider, 
                                          options: DownloadOptions):
@@ -529,7 +546,7 @@ class AssetInstaller:
                     c += 1
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             self.remove_temp_file(tmp)
-        return GithubActionsData(files, repo, workflow, run)
+        return GithubActionsData(repo, workflow, run, files=files)
     
     def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
         if provider.version_is_id:
@@ -574,7 +591,7 @@ class AssetInstaller:
             files = download_version(ver)
             if files:
                 self.info(f"✅ Downloaded latest version {ver.name}")
-                return ModrinthData(files, ver)
+                return ModrinthData(ver, files=files)
             else:
                 raise ValueError(f"Failed to download version {ver.name}. See errors above for details")
         # at this moment version is not latest and not an version id, so this is version_number
@@ -585,7 +602,7 @@ class AssetInstaller:
         if not files:
             raise ValueError(f"No valid files found in version {ver}")
         self.info(f"✅ Downloaded {len(files)} files")
-        return ModrinthData(files, ver)
+        return ModrinthData(ver, files=files)
     
     def download_direct_url(self, provider: DirectUrlProvider,
                                 options: DownloadOptions):
@@ -599,7 +616,7 @@ class AssetInstaller:
                 name = path.split("/")[-1]
         out = options.folder / name
         self.download_file(requests.Session(), str(provider.url), out)
-        return DownloadData([out])
+        return DownloadData(files=[out], primary_file=out)
 
 
 class Installer:

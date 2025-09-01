@@ -316,6 +316,9 @@ class CustomManifest(AssetManifest):
 
     def get_base_folder(self) -> Path:
         return self.folder
+    
+    def get_manifest_group(self) -> str:
+        return "customs"
 
 
 class CoreManifest(BaseModel):
