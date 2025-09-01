@@ -4,6 +4,7 @@ from abc import ABC
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Literal, Union
+from dataclasses import dataclass
 
 import json5
 import yaml
@@ -438,6 +439,20 @@ class ModrinthCache(FilesCache):
     version_id: str
     version_number: str
 
+@dataclass
+class InvalidReason:
+    id: str
+    reason: str
+
+class AssetValidState(Enum):
+    VALID = InvalidReason("valid", "Asset valid") # not displayed
+    REMOVED = InvalidReason("removed", "Asset removed from manifest")
+    HASH_MISMATCH = InvalidReason("hash_mismatch", "Asset manifest modified")
+    MISSING_FILES = InvalidReason("missing_files", "Some files are missing")
+
+    def is_ok(self):
+        return self.value.id == AssetValidState.VALID.value.id
+
 
 class AssetCache(BaseModel):
     asset_id: str
@@ -447,10 +462,13 @@ class AssetCache(BaseModel):
 
     def is_valid(self, folder: Path, hash: str | None):
         if hash is None:  # asset removed from manifest
-            return False
+            return AssetValidState.REMOVED
         if self.asset_hash != hash:
-            return False
-        return self.data.check_files(folder)
+            return AssetValidState.HASH_MISMATCH
+        if not self.data.check_files(folder):
+            return AssetValidState.MISSING_FILES
+        else:
+            return AssetValidState.VALID
 
     @staticmethod
     def create(asset_id: str, hash: str, update_time: int, cache: FilesCache) -> "AssetCache":

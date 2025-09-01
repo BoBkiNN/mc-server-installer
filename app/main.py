@@ -82,7 +82,7 @@ class CacheStore:
             self.logger.warning("This might mean that all cached data is invalid in current new location, so resetting")
             self.reset()
     
-    def invalidate_asset(self, asset: str | AssetManifest):
+    def invalidate_asset(self, asset: str | AssetManifest, reason: InvalidReason | None = None):
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
         removed = self.cache.assets.pop(id, None)
         if removed:
@@ -90,7 +90,10 @@ class CacheStore:
                 stored_file = self.cache.server_folder / p
                 if stored_file.is_file():
                     os.remove(stored_file)
-            self.logger.info(f"💥 Invalidated asset {id}")
+            msg = f"💥 Invalidated asset {id}"
+            if reason:
+                msg += f" due to: {reason.reason}"
+            self.logger.info(msg)
             self.dirty = True
     
     def check_asset(self, asset: str | AssetManifest, hash: str | None):
@@ -100,10 +103,11 @@ class CacheStore:
         if not entry:
             return None
         self.logger.debug(f"Checking cached asset {entry.asset_id}({entry.asset_hash}) with actual {hash}")
-        if entry.is_valid(self.folder, hash):
+        state = entry.is_valid(self.folder, hash)
+        if state.is_ok():
             return entry
         else:
-            self.invalidate_asset(id)
+            self.invalidate_asset(id, state.value)
             return None
     
     def store_asset(self, asset: AssetCache):
