@@ -730,14 +730,14 @@ class Installer:
             raise ValueError(f"Unsupported provider {type(provider)}")
         return d_data
     
-    def install(self, asset: AssetManifest) -> AssetCache:
+    def install(self, asset: AssetManifest) -> tuple[AssetCache, bool]:
         provider = asset.provider
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
         cached = self.cache.check_asset(asset_id, asset_hash) if asset.caching else None
         if cached:
             self.logger.info(f"⏩ Skipping {asset.type.value} '{asset_id}' as it already installed")
-            return cached
+            return cached, True
         
         self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
         asset_folder = asset.get_base_folder()
@@ -759,27 +759,30 @@ class Installer:
         result = AssetCache.create(asset_id, asset_hash, millis(), cache)
         if asset.caching:
             self.cache.store_asset(result)
-        return result
+        return result, False
     
     def install_list(self, ls: Sequence[AssetManifest], entry_name: str):
         if not ls: return
         total = len(ls)
         self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
         failed: list[AssetManifest] = []
+        cached: list[AssetManifest] = []
         for a in ls:
             key = a.resolve_asset_id()
             try:
-                self.install(a)
+                _, is_cached = self.install(a)
             except Exception as e:
                 self.logger.error(f"Exception installing asset {key!r}", exc_info=e)
                 failed.append(a)
                 continue
+            if is_cached:
+                cached.append(a)
             self.cache.save()
-        
+        cached_str = f" ({len(cached)} cached)" if cached else ""
         if failed:
-            self.logger.info(f"⚠  Installed {total-len(failed)}/{total} {entry_name}(s)")
+            self.logger.info(f"⚠  Installed {total-len(failed)}/{total}{cached_str} {entry_name}(s)")
         else:
-            self.logger.info(f"✅ Installed {total}/{total} {entry_name}(s)")
+            self.logger.info(f"✅ Installed {total}/{total}{cached_str} {entry_name}(s)")
     
     def install_mods(self):
         self.install_list(self.manifest.mods, "mod")
