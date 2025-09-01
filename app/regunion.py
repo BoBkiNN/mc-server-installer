@@ -104,6 +104,45 @@ class RegistryUnion:
         return handler(ret_schema)
 
 
+class RegistryKey:
+    """Usage: 
+    >>> Annotated[str, RegistryKey("animals")]
+    """
+
+    def __init__(self, registry_key: str):
+        self.registry_key = registry_key
+
+    def __get_pydantic_core_schema__(self, source: Type[Any], handler) -> core_schema.CoreSchema:
+        return core_schema.str_schema()
+
+    def __get_pydantic_json_schema__(self, schema: core_schema.CoreSchema, handler) -> JsonSchemaValue:
+        generate = getattr(handler, "generate_json_schema", None)
+        registries: Registries | None
+        if isinstance(generate, RegistriesGenerateJsonSchema):
+            registries = generate.get_registries()
+        else:
+            registries = None
+
+        # fallback
+        if registries is None:
+            registries = schema.get("metadata", {}).get("registries")
+
+        if not registries:
+            return {"type": "string", "title": f"RegistryEnum[{self.registry_key}]"}
+
+        registry = registries.get_model_registry(self.registry_key)
+        if not registry:
+            raise ValueError(f"Unknown registry {self.registry_key}")
+
+        keys = list(registry.keys())
+        # sch = core_schema.enum_schema(str, keys, sub_type="str")
+        # return handler(sch)
+        return {
+            "type": "string",
+            "enum": keys,
+            "title": f"RegistryEnum[{self.registry_key}]"
+        }
+
 if __name__ == "__main__":
     import json
     from pathlib import Path
@@ -125,8 +164,9 @@ if __name__ == "__main__":
 
     class TestModel(BaseModel):
         pet: Annotated[Animal, RegistryUnion("animals")]
+        pet_type: Annotated[str, RegistryKey("animals")]
 
-    m = TestModel.model_validate(TestModel(pet=Dog(barks=3)), context={
+    m = TestModel.model_validate(TestModel(pet=Dog(barks=3), pet_type="dog"), context={
                                  REGISTRIES_CONTEXT_KEY: root})
     d = m.model_dump()
     print("d:", d)

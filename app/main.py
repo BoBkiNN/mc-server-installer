@@ -764,7 +764,7 @@ class Installer:
         self.logger.info(f"✅ Installed {len(plugins)} plugin(s)")
     
     def install_datapacks(self):
-        datapacks = self.manifest.plugins
+        datapacks = self.manifest.datapacks
         if not datapacks:
             return
         self.logger.info(f"🔄 Installing {len(datapacks)} datapack(s)")
