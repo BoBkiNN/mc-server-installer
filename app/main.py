@@ -693,7 +693,8 @@ class Installer:
         out = self.folder / jar_name
         self.assets.download_file(api.session, str(download.url), out)
         vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
-        return PaperCoreCache(update_time=millis(), data=FilesCache(files=[Path(jar_name)]), version_hash=vhash, build_number=build.id)
+        data = PaperCoreCache(files=[Path(jar_name)], build_number=build.id)
+        return CoreCache(update_time=millis(), data=data, version_hash=vhash, type="paper")
         
 
     def install_core(self):
@@ -791,6 +792,7 @@ CACHES_REGISTRY.register("files", FilesCache)
 CACHES_REGISTRY.register("github", GithubReleaseCache)
 CACHES_REGISTRY.register("github-actions", GithubActionsCache)
 CACHES_REGISTRY.register("modrinth", ModrinthCache)
+CACHES_REGISTRY.register("core/paper", PaperCoreCache)
 FILE_SELECTORS = ROOT_REGISTRY.create_registry("file_selectors", FileSelector)
 FILE_SELECTORS.register("all", AllFilesSelector())
 FILE_SELECTORS.register("simple_jar", SimpleJarSelector())

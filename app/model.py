@@ -477,17 +477,16 @@ class AssetCache(BaseModel):
 
 class CoreCache(BaseModel):
     update_time: int
-    data: FilesCache
+    data: Annotated[FilesCache, RegistryUnion("asset_cache")]
     version_hash: str  # used for latest checking
     type: str
 
     def display_name(self) -> str:
         return f"{self.type}-({self.version_hash})"
 
-
-class PaperCoreCache(CoreCache):
+class PaperCoreCache(FilesCache):
     build_number: int
-    type: str = "paper"
+    type: str = "core/paper"
 
     def display_name(self) -> str:
         return f"paper-{self.build_number}"
