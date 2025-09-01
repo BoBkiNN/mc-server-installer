@@ -103,7 +103,8 @@ class CacheStore:
         entry = self.cache.assets.get(id, None)
         if not entry:
             return None
-        self.logger.debug(f"Checking cached asset {entry.asset_id}({entry.asset_hash}) with actual {hash}")
+        actual_hash_str = None if hash is None else hash[:7]+".."
+        self.logger.debug(f"Checking cached asset {entry.asset_id}({entry.asset_hash[:7]}..) with actual {actual_hash_str}")
         state = entry.is_valid(self.folder, hash)
         if state.is_ok():
             return entry
@@ -776,7 +777,7 @@ class Installer:
             self.cache.save()
         
         if failed:
-            self.logger.info(f"⚠ Installed {len(failed)}/{total} {entry_name}(s)")
+            self.logger.info(f"⚠  Installed {total-len(failed)}/{total} {entry_name}(s)")
         else:
             self.logger.info(f"✅ Installed {total}/{total} {entry_name}(s)")
     
@@ -784,13 +785,13 @@ class Installer:
         self.install_list(self.manifest.mods, "mod")
     
     def install_plugins(self):
-        self.install_list(self.manifest.mods, "plugin")
+        self.install_list(self.manifest.plugins, "plugin")
     
     def install_datapacks(self):
-        self.install_list(self.manifest.mods, "datapack")
+        self.install_list(self.manifest.datapacks, "datapack")
     
     def install_customs(self):
-        self.install_list(self.manifest.mods, "custom asset")
+        self.install_list(self.manifest.customs, "custom asset")
 
 
 ROOT_REGISTRY = Registries()
