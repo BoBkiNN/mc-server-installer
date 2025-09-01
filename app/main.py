@@ -4,8 +4,9 @@ import re
 import sys
 import time
 import uuid
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass
 from zipfile import ZipFile
+from typing import Sequence
 
 import click
 import colorlog
@@ -13,7 +14,7 @@ import modrinth
 import papermc_fill as papermc
 import requests
 import tqdm
-from github import Auth, Github
+from github import Auth, Github, UnknownObjectException
 from github.Artifact import Artifact
 from github.GitRelease import GitRelease
 from github.Repository import Repository
@@ -447,7 +448,10 @@ class AssetInstaller:
     def get_repo(self, name: str):
         if name in self.repo_cache:
             return self.repo_cache[name]
-        repo = self.github.get_repo(name)
+        try:
+            repo = self.github.get_repo(name)
+        except UnknownObjectException:
+            raise ValueError(f"Unknown repository {name}")
         self.repo_cache[name] = repo
         return repo
     
@@ -712,6 +716,20 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
     
+    def download_asset(self, provider: Provider, options: DownloadOptions):
+        d_data: DownloadData
+        if isinstance(provider, GithubReleasesProvider):
+            d_data = self.assets.download_github_release(provider, options)
+        elif isinstance(provider, GithubActionsProvider):
+            d_data = self.assets.download_github_actions(provider, options)
+        elif isinstance(provider, ModrinthProvider):
+            d_data = self.assets.download_modrinth(provider, options)
+        elif isinstance(provider, DirectUrlProvider):
+            d_data = self.assets.download_direct_url(provider, options)
+        else:
+            raise ValueError(f"Unsupported provider {type(provider)}")
+        return d_data
+    
     def install(self, asset: AssetManifest) -> AssetCache:
         provider = asset.provider
         asset_id = asset.resolve_asset_id()
@@ -728,17 +746,10 @@ class Installer:
         options = DownloadOptions(asset, asset.version, target_folder, selector)
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
-        d_data: DownloadData
-        if isinstance(provider, GithubReleasesProvider):
-            d_data = self.assets.download_github_release(provider, options)
-        elif isinstance(provider, GithubActionsProvider):
-            d_data = self.assets.download_github_actions(provider, options)
-        elif isinstance(provider, ModrinthProvider):
-            d_data = self.assets.download_modrinth(provider, options)
-        elif isinstance(provider, DirectUrlProvider):
-            d_data = self.assets.download_direct_url(provider, options)
-        else:
-            raise ValueError(f"Unsupported provider {type(provider)}")
+        try:
+            d_data = self.download_asset(provider, options)
+        except Exception as e:
+            raise ValueError(f"Exception downloading asset {asset_id}") from e
         d_data.files = [p.relative_to(
             self.folder) if not p.is_absolute() else p for p in d_data.files]
         
@@ -750,40 +761,37 @@ class Installer:
             self.cache.store_asset(result)
         return result
     
+    def install_list(self, ls: Sequence[AssetManifest], entry_name: str):
+        if not ls: return
+        total = len(ls)
+        self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
+        failed: list[AssetManifest] = []
+        for a in ls:
+            key = a.resolve_asset_id()
+            try:
+                self.install(a)
+            except Exception as e:
+                self.logger.error(f"Exception installing asset {key!r}", exc_info=e)
+                failed.append(a)
+                continue
+            self.cache.save()
+        
+        if failed:
+            self.logger.info(f"⚠ Installed {len(failed)}/{total} {entry_name}(s)")
+        else:
+            self.logger.info(f"✅ Installed {total}/{total} {entry_name}(s)")
+    
     def install_mods(self):
-        mods = self.manifest.mods
-        if not mods: return
-        self.logger.info(f"🔄 Installing {len(mods)} mod(s)")
-        self.mods_folder.mkdir(parents=True, exist_ok=True)
-        for mod in mods:
-            self.install(mod)
-        self.logger.info(f"✅ Installed {len(mods)} mod(s)")
+        self.install_list(self.manifest.mods, "mod")
     
     def install_plugins(self):
-        plugins = self.manifest.plugins
-        if not plugins: return
-        self.logger.info(f"🔄 Installing {len(plugins)} plugin(s)")
-        self.plugins_folder.mkdir(parents=True, exist_ok=True)
-        for plugin in plugins:
-            self.install(plugin)
-        self.logger.info(f"✅ Installed {len(plugins)} plugin(s)")
+        self.install_list(self.manifest.mods, "plugin")
     
     def install_datapacks(self):
-        datapacks = self.manifest.datapacks
-        if not datapacks:
-            return
-        self.logger.info(f"🔄 Installing {len(datapacks)} datapack(s)")
-        for dp in datapacks:
-            self.install(dp)
-        self.logger.info(f"✅ Installed {len(datapacks)} datapack(s)")
+        self.install_list(self.manifest.mods, "datapack")
     
     def install_customs(self):
-        customs = self.manifest.customs
-        if not customs: return
-        self.logger.info(f"🔄 Installing {len(customs)} custom asset(s)")
-        for custom in customs:
-            self.install(custom)
-        self.logger.info(f"✅ Installed {len(customs)} custom asset(s)")
+        self.install_list(self.manifest.mods, "custom asset")
 
 
 ROOT_REGISTRY = Registries()
