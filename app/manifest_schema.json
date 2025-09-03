@@ -690,9 +690,9 @@
     },
     "RegistryKey__file_selectors": {
       "enum": [
-        "pattern",
+        "all",
         "simple-jar",
-        "all"
+        "pattern"
       ],
       "type": "string"
     },

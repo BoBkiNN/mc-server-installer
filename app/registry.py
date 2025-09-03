@@ -2,7 +2,8 @@ from typing import Any, Generic, Optional, TypeVar
 
 from pydantic import BaseModel, ValidationError, ValidationInfo
 from pydantic_core import InitErrorDetails
-from typing import get_args, Literal
+from typing import get_args, Literal, Any
+import inspect
 
 REGISTRIES_CONTEXT_KEY = "registries"
 
@@ -30,8 +31,8 @@ class Registry(Generic[T]):
     def all(self) -> dict[str, T]:
         return dict(self._entries)
 
-    def keys(self) -> set[str]:
-        return set(self._entries.keys())
+    def keys(self) -> list[str]:
+        return list(self._entries.keys())
 
     def size(self) -> int:
         return len(self._entries)
@@ -45,11 +46,12 @@ class Registry(Generic[T]):
 M = TypeVar("M", bound=BaseModel)
 
 
-class TypedModel(BaseModel, Generic[T]):
+class TypedModel(BaseModel):
+
     @classmethod
     def get_type(cls) -> str:
-        if cls == T:
-            raise TypeError("Abstract class does not have type")
+        if inspect.isabstract(cls):
+            raise TypeError("Abstract base class cannot have type")
         ann = cls.model_fields["type"].annotation
         if getattr(ann, "__origin__", None) is Literal:
             args = get_args(ann)
@@ -144,7 +146,7 @@ def registry_from_info(data: dict, info: ValidationInfo, key: str = "type"):
     return registry, t
 
 
-def raise_unkown_type(field: str, input: str, keys: set[str]):
+def raise_unkown_type(field: str, input: str, keys: list[str]):
     raise ValidationError.from_exception_data(
         title="Unknown type",
         line_errors=[InitErrorDetails(

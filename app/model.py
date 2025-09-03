@@ -17,7 +17,7 @@ from registry import *
 from regunion import RegistryUnion, RegistryKey
 import re
 
-class FileSelector(ABC, TypedModel["FileSelector"]):
+class FileSelector(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
 
     @abstractmethod
@@ -58,7 +58,7 @@ FileSelectorKey: TypeAlias = Annotated[str, RegistryKey(
 FileSelectorUnion: TypeAlias = Annotated[FileSelector, RegistryUnion(
     "file_selectors"), Field(title="FileSelectorUnion")]
 
-class AssetProvider(TypedModel["AssetProvider"]):
+class AssetProvider(ABC, TypedModel):
     # TODO fallback providers
     file_selector: FileSelectorKey | FileSelectorUnion = "all"
     """Selector used to choose files from multiple"""
