@@ -272,39 +272,6 @@ class JenkinsData(DownloadData):
         return JenkinsCache(files=self.files, build_number=self.build.number)
 
 
-def is_valid_path(path_str: str) -> bool:
-    try:
-        Path(path_str)  # will raise ValueError if fundamentally broken
-    except ValueError:
-        return False
-
-    if os.name == "nt":  # Windows-specific rules
-        # forbidden characters
-        if re.search(r'[<>:"/\\|?*]', path_str):
-            return False
-
-        # reserved names (case-insensitive)
-        reserved = {
-            "CON", "PRN", "AUX", "NUL",
-            *(f"COM{i}" for i in range(1, 10)),
-            *(f"LPT{i}" for i in range(1, 10)),
-        }
-        name = Path(path_str).stem.upper()
-        if name in reserved:
-            return False
-
-        # # path length (WinAPI limit is 260 by default)
-        # if len(path_str) >= 260:
-        #     return False
-
-    else:  # POSIX
-        # only forbidden character is null byte
-        if "\x00" in path_str:
-            return False
-
-    return True
-
-
 class ExpressionProcessor:
     def __init__(self, logger: logging.Logger, folder: Path) -> None:
         self.logger = logger
@@ -367,12 +334,6 @@ class ExpressionProcessor:
             else:
                 bs += part
         return bs
-
-    def check_path(self, text: str) -> Path | None:
-        if is_valid_path(text):
-            return Path(text)
-        else:
-            return None
 
     def handle(self, key: str, action: BaseAction, data: DownloadData):
         # TODO return bool or enum stating error or ok

@@ -16,6 +16,7 @@ from pydantic_core import core_schema, SchemaValidator
 from registry import *
 from regunion import RegistryUnion, RegistryKey
 import re
+import utils
 
 class FileSelector(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -162,82 +163,6 @@ class Expr(str):
     def __repr__(self) -> str:
         return f"Expr({self})"
     
-    
-
-
-def parse_template_parts(s: str, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
-    """
-    Split template string `s` into a list of literal strings and Expr parts.
-    Expressions are delimited by `${{` ... `}}`.
-
-    Returns: list[str | Expr]
-    """
-    res: list[Union[str, Expr]] = []
-    n = len(s)
-    last = 0
-
-    while True:
-        pos = s.find("${{", last)
-        if pos == -1:
-            break
-        end = s.find("}}", pos + 3)
-        if end == -1:
-            # no closing -> stop and treat remainder as literal
-            break
-
-        # count backslashes immediately before pos
-        bs = 0
-        k = pos - 1
-        while k >= 0 and s[k] == "\\":
-            bs += 1
-            k -= 1
-
-        # prefix is everything from `last` up to the first of those backslashes
-        prefix = s[last: pos - bs]
-
-        expr_text = s[pos + 3: end]
-        token_literal = s[pos: end + 2]  # the whole `${{...}}`
-
-        if not interpret_escapes:
-            if prefix:
-                res.append(prefix)
-            res.append(Expr(expr_text))
-            last = end + 2
-            continue
-
-        # interpret escapes according to rules
-        if bs == 0:
-            # normal expression
-            if prefix:
-                res.append(prefix)
-            res.append(Expr(expr_text))
-        elif bs == 1:
-            # single backslash -> escape token, drop the backslash
-            if prefix:
-                res.append(prefix)
-            res.append(token_literal)
-        else:
-            # bs >= 2
-            kept = bs - 1
-            kept_bs = "\\" * kept
-            if bs % 2 == 0:
-                # even -> keep (bs-1) backslashes, then expression
-                if prefix or kept_bs:
-                    res.append(prefix + kept_bs)
-                res.append(Expr(expr_text))
-            else:
-                # odd -> keep (bs-1) backslashes, token treated as literal appended together
-                res.append(prefix + kept_bs + token_literal)
-
-        last = end + 2
-
-    # append the remainder
-    if last < n:
-        rest = s[last:]
-        if rest:
-            res.append(rest)
-
-    return res
 
 class TemplateExpr(RootModel):
     root: str
@@ -247,7 +172,7 @@ class TemplateExpr(RootModel):
         return self.root
 
     def parts(self, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
-        return parse_template_parts(self.root, interpret_escapes)
+        return utils.parse_template_parts(self.root, Expr, interpret_escapes)
 
 # if __name__ == "__main__":
 #     while True:
