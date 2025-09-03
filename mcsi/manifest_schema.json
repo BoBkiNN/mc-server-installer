@@ -27,7 +27,7 @@
       "title": "Channel",
       "type": "string"
     },
-    "DirectUrlProvider": {
+    "DirectUrlAsset": {
       "description": "Downloads asset from specified url",
       "properties": {
         "file_selector": {
@@ -134,7 +134,7 @@
         "url",
         "type"
       ],
-      "title": "DirectUrlProvider",
+      "title": "DirectUrlAsset",
       "type": "object"
     },
     "DummyAction": {
@@ -169,7 +169,7 @@
       "title": "DummyAction",
       "type": "object"
     },
-    "GithubActionsProvider": {
+    "GithubActionsAsset": {
       "description": "Downloads artifact from github actions",
       "properties": {
         "file_selector": {
@@ -300,10 +300,10 @@
         "workflow",
         "type"
       ],
-      "title": "GithubActionsProvider",
+      "title": "GithubActionsAsset",
       "type": "object"
     },
-    "GithubReleasesProvider": {
+    "GithubReleasesAsset": {
       "description": "Downloads asset from github",
       "properties": {
         "file_selector": {
@@ -410,10 +410,10 @@
         "repository",
         "type"
       ],
-      "title": "GithubReleasesProvider",
+      "title": "GithubReleasesAsset",
       "type": "object"
     },
-    "JenkinsProvider": {
+    "JenkinsAsset": {
       "properties": {
         "file_selector": {
           "anyOf": [
@@ -529,10 +529,10 @@
         "job",
         "type"
       ],
-      "title": "JenkinsProvider",
+      "title": "JenkinsAsset",
       "type": "object"
     },
-    "ModrinthProvider": {
+    "ModrinthAsset": {
       "description": "Downloads asset from modrinth",
       "properties": {
         "file_selector": {
@@ -677,7 +677,7 @@
         "project_id",
         "type"
       ],
-      "title": "ModrinthProvider",
+      "title": "ModrinthAsset",
       "type": "object"
     },
     "PaperCoreManifest": {
@@ -790,6 +790,35 @@
       ],
       "type": "string"
     },
+    "RegistryUnion__assets": {
+      "discriminator": {
+        "mapping": {
+          "github": "#/$defs/GithubReleasesAsset",
+          "github-actions": "#/$defs/GithubActionsAsset",
+          "jenkins": "#/$defs/JenkinsAsset",
+          "modrinth": "#/$defs/ModrinthAsset",
+          "url": "#/$defs/DirectUrlAsset"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ModrinthAsset"
+        },
+        {
+          "$ref": "#/$defs/GithubReleasesAsset"
+        },
+        {
+          "$ref": "#/$defs/DirectUrlAsset"
+        },
+        {
+          "$ref": "#/$defs/GithubActionsAsset"
+        },
+        {
+          "$ref": "#/$defs/JenkinsAsset"
+        }
+      ]
+    },
     "RegistryUnion__file_selectors": {
       "discriminator": {
         "mapping": {
@@ -808,35 +837,6 @@
         },
         {
           "$ref": "#/$defs/RegexFileSelector"
-        }
-      ]
-    },
-    "RegistryUnion__providers": {
-      "discriminator": {
-        "mapping": {
-          "github": "#/$defs/GithubReleasesProvider",
-          "github-actions": "#/$defs/GithubActionsProvider",
-          "jenkins": "#/$defs/JenkinsProvider",
-          "modrinth": "#/$defs/ModrinthProvider",
-          "url": "#/$defs/DirectUrlProvider"
-        },
-        "propertyName": "type"
-      },
-      "oneOf": [
-        {
-          "$ref": "#/$defs/ModrinthProvider"
-        },
-        {
-          "$ref": "#/$defs/GithubReleasesProvider"
-        },
-        {
-          "$ref": "#/$defs/DirectUrlProvider"
-        },
-        {
-          "$ref": "#/$defs/GithubActionsProvider"
-        },
-        {
-          "$ref": "#/$defs/JenkinsProvider"
         }
       ]
     },
@@ -962,7 +962,7 @@
     "mods": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__providers"
+        "$ref": "#/$defs/RegistryUnion__assets"
       },
       "title": "Mods",
       "type": "array"
@@ -970,7 +970,7 @@
     "plugins": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__providers"
+        "$ref": "#/$defs/RegistryUnion__assets"
       },
       "title": "Plugins",
       "type": "array"
@@ -978,7 +978,7 @@
     "datapacks": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__providers"
+        "$ref": "#/$defs/RegistryUnion__assets"
       },
       "title": "Datapacks",
       "type": "array"
@@ -986,7 +986,7 @@
     "customs": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__providers"
+        "$ref": "#/$defs/RegistryUnion__assets"
       },
       "title": "Customs",
       "type": "array"

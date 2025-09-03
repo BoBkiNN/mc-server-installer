@@ -285,7 +285,7 @@ Core = Annotated[
 ]
 
 AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(
-    "providers"), Field(title="Provider")]
+    "assets"), Field(title="Asset")]
 
 # ProviderUnion: TypeAlias = Annotated[Union[ModrinthProvider, GithubReleasesProvider], Field(title="Provider", discriminator="type")]
 

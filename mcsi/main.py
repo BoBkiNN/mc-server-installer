@@ -939,8 +939,8 @@ FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
     "file_selectors", FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
-PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", Asset)
-PROVIDERS.register_models(ModrinthAsset, GithubReleasesAsset,
+ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
+ASSETS.register_models(ModrinthAsset, GithubReleasesAsset,
                           DirectUrlAsset, GithubActionsAsset,
                           JenkinsAsset)
 
