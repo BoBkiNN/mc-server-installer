@@ -857,16 +857,12 @@ class Installer:
 
 ROOT_REGISTRY = Registries()
 CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry("asset_cache", FilesCache)
-CACHES_REGISTRY.register_model(FilesCache)
-CACHES_REGISTRY.register_model(GithubReleaseCache)
-CACHES_REGISTRY.register_model(GithubActionsCache)
-CACHES_REGISTRY.register_model(ModrinthCache)
-CACHES_REGISTRY.register_model(PaperCoreCache)
-CACHES_REGISTRY.register_model(JenkinsCache)
+CACHES_REGISTRY.register_models(FilesCache, GithubReleaseCache,
+                                GithubActionsCache, ModrinthCache,
+                                PaperCoreCache, JenkinsCache)
 FILE_SELECTORS = ROOT_REGISTRY.create_model_registry("file_selectors", FileSelector)
-FILE_SELECTORS.register_model(AllFilesSelector)
-FILE_SELECTORS.register_model(SimpleJarSelector)
-FILE_SELECTORS.register_model(RegexFileSelector)
+FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
+                               RegexFileSelector)
 PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", AssetProvider)
 PROVIDERS.register_models(ModrinthProvider, GithubReleasesProvider,
                           DirectUrlProvider, GithubActionsProvider,
