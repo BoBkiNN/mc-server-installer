@@ -3,7 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Literal, Union, TypeAlias, ClassVar
+from typing import Annotated, Literal, Union, TypeAlias
 from dataclasses import dataclass
 
 import json5
@@ -17,7 +17,7 @@ from registry import *
 from regunion import RegistryUnion, RegistryKey
 import re
 
-class FileSelector(ABC, BaseModel):
+class FileSelector(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
 
     @abstractmethod
@@ -26,21 +26,21 @@ class FileSelector(ABC, BaseModel):
 
 
 class AllFilesSelector(FileSelector):
-    type: Literal["all"] = "all"
+    type: Literal["all"]
 
     def find_targets(self, ls: list[str]) -> list[str]:
         return ls
 
 
 class SimpleJarSelector(FileSelector):
-    type: Literal["simple-jar"] = "simple-jar"
+    type: Literal["simple-jar"]
 
     def find_targets(self, ls: list[str]) -> list[str]:
         return [i for i in ls if i.endswith(".jar") and not i.endswith("-sources.jar") and not i.endswith("-api.jar")]
 
 class RegexFileSelector(FileSelector):
     """Uses RegEx pattern to filter files"""
-    type: Literal["pattern"] = "pattern"
+    type: Literal["pattern"]
     pattern: re.Pattern
     mode: Literal["full"] | Literal["search"] = "search"
     """Regex mode. <br>
@@ -79,7 +79,7 @@ class AssetProvider(TypedModel["AssetProvider"]):
             sel = reg.get(self.file_selector)
             if not sel:
                 raise ValueError(f"Unknown file selector type {self.file_selector!r}")
-            return sel.model_validate({})
+            return sel.model_validate({"type": self.file_selector})
         else:
             return self.file_selector
 

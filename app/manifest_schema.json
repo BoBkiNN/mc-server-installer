@@ -4,7 +4,6 @@
       "properties": {
         "type": {
           "const": "all",
-          "default": "all",
           "enum": [
             "all"
           ],
@@ -12,6 +11,9 @@
           "type": "string"
         }
       },
+      "required": [
+        "type"
+      ],
       "title": "AllFilesSelector",
       "type": "object"
     },
@@ -646,7 +648,6 @@
       "properties": {
         "type": {
           "const": "pattern",
-          "default": "pattern",
           "enum": [
             "pattern"
           ],
@@ -681,6 +682,7 @@
         }
       },
       "required": [
+        "type",
         "pattern"
       ],
       "title": "RegexFileSelector",
@@ -688,9 +690,9 @@
     },
     "RegistryKey__file_selectors": {
       "enum": [
-        "all",
         "pattern",
-        "simple-jar"
+        "simple-jar",
+        "all"
       ],
       "type": "string"
     },
@@ -780,7 +782,6 @@
       "properties": {
         "type": {
           "const": "simple-jar",
-          "default": "simple-jar",
           "enum": [
             "simple-jar"
           ],
@@ -788,6 +789,9 @@
           "type": "string"
         }
       },
+      "required": [
+        "type"
+      ],
       "title": "SimpleJarSelector",
       "type": "object"
     },
