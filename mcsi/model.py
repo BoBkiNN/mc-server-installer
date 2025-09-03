@@ -17,6 +17,8 @@ from registry import *
 from regunion import RegistryUnion, RegistryKey
 import re
 import utils
+from __version__ import __version__
+import logging
 
 class FileSelector(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -344,6 +346,7 @@ Core = Annotated[
 
 
 class Manifest(BaseModel):
+    version: str = __version__
     mc_version: str
     core: Core
 
@@ -364,8 +367,9 @@ class Manifest(BaseModel):
         return None
 
     @staticmethod
-    def load(file: Path, registries: "Registries") -> "Manifest":
+    def load(file: Path, registries: "Registries", logger: logging.Logger) -> "Manifest":
         ext = file.name.split(".")[-1]
+        d: dict[str, Any]
         with open(file, "r", encoding="utf-8") as f:
             if ext in ["json", "yml", "yaml"]:
                 d = yaml.load(f, yaml.FullLoader)
@@ -374,6 +378,9 @@ class Manifest(BaseModel):
             else:
                 raise ValueError(
                     f"Cannot find loader for manifest extension {ext}")
+        ver = d.get("version", None)
+        if ver != __version__:
+            logger.warning("Manifest was made for different version. You might expect errors")
         try:
             return Manifest.model_validate(d, context={REGISTRIES_CONTEXT_KEY: registries})
         except ValidationError as e:
@@ -467,6 +474,7 @@ class PaperCoreCache(FilesCache):
 
 
 class Cache(BaseModel):
+    version: str = __version__
     server_folder: Path
     mc_version: str
     assets: dict[str, AssetCache] = {}

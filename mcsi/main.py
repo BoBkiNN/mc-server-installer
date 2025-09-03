@@ -26,6 +26,7 @@ from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
 from model import *
 from regunion import make_registry_schema_generator
+from __version__ import __version__
 
 
 def millis():
@@ -80,6 +81,8 @@ class CacheStore:
                 "Exception loading stored cache. Resetting", exc_info=e)
             self.reset()
             return
+        if self.cache.version != __version__:
+            self.logger.warning("Cache is saved with different versions. You might expect loading erros")
         if self.cache.mc_version and self.cache.mc_version != self.mf.mc_version:
             self.logger.info(
                 f"Resetting cache due to changed minecraft version {self.cache.mc_version} -> {self.mf.mc_version}")
@@ -716,13 +719,13 @@ class AssetInstaller:
 class Installer:
     def __init__(self, manifest: Manifest, manifest_path: Path,
                  server_folder: Path, auth: Authorizaition, debug: bool,
-                 registries: Registries) -> None:
+                 registries: Registries, logger: logging.Logger) -> None:
         self.registries = registries
         self.manifest = manifest
         self.manifest_path = manifest_path
         self.folder = server_folder
         self.auth = auth
-        self.logger = logging.getLogger("Installer")
+        self.logger = logger
         self.session = requests.Session()
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
         self.cache = CacheStore(
@@ -977,9 +980,10 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
             click.echo("No manifest.json found or passed")
             return
 
+    logger = logging.getLogger("Installer")
     auth = Authorizaition(github=github_token)
-    mf = Manifest.load(mfp, ROOT_REGISTRY)
-    installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY)
+    mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
     installer.prepare()
     installer.install_core()
