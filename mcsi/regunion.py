@@ -105,7 +105,8 @@ class RegistryUnion:
             if isinstance(model.__pydantic_core_schema__, MockCoreSchema):
                 model.model_rebuild(force=True)
             if isinstance(model.__pydantic_core_schema__, MockCoreSchema):
-                raise ValueError(f"model {model} schema is MockCoreSchema! Seems like there are some delayed types like list[\"Type\"]")
+                raise ValueError(f"model {model} schema is MockCoreSchema! Seems like there are some delayed types like list[\"Type\"]: \
+                                 {model.__pydantic_core_schema__._error_message}")
             # type: ignore
             tagged_choices[key] = model.__pydantic_core_schema__
 
