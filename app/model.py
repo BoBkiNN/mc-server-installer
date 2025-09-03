@@ -134,6 +134,17 @@ class DirectUrlProvider(AssetProvider):
     def create_asset_id(self) -> str:
         return str(self.url)
 
+class JenkinsProvider(AssetProvider):
+    url: HttpUrl
+    """URL to Jenkins instance"""
+    job: str
+    """Name of job"""
+    file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
+    type: Literal["jenkins"]
+
+    def create_asset_id(self) -> str:
+        host = self.url.host or "Unknown"
+        return f"{self.job}@{host}"
 
 class AssetType(Enum):
     MOD = "mod"
@@ -144,7 +155,8 @@ class AssetType(Enum):
 
 Provider = Annotated[
     Union[ModrinthProvider, GithubReleasesProvider,
-          DirectUrlProvider, GithubActionsProvider],
+          DirectUrlProvider, GithubActionsProvider,
+          JenkinsProvider],
     Field(discriminator="type"),
 ]
 
@@ -468,6 +480,10 @@ class ModrinthCache(FilesCache):
     type: str = "modrinth"
     version_id: str
     version_number: str
+
+class JenkinsCache(FilesCache):
+    type: str = "jenkins"
+    build_number: int
 
 @dataclass
 class InvalidReason:

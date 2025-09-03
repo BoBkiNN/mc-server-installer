@@ -25,6 +25,8 @@ from asteval.astutils import ExceptionHolder
 from model import *
 from model import FilesCache
 from regunion import make_registry_schema_generator
+import jenkins
+import jenkins_models as jm
 
 
 def millis():
@@ -242,6 +244,14 @@ class ModrinthData(DownloadData):
     def create_cache(self) -> FilesCache:
         return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
 
+@dataclass
+class JenkinsData(DownloadData):
+    job: jm.Job
+    build: jm.Build
+    artifacts: list[jm.Artifact]
+
+    def create_cache(self) -> FilesCache:
+        return JenkinsCache(files=self.files, build_number=self.build.number)
 
 def is_valid_path(path_str: str) -> bool:
     try:
@@ -639,6 +649,52 @@ class AssetInstaller:
         out = options.folder / name
         self.download_file(requests.Session(), str(provider.url), out)
         return DownloadData(files=[out], primary_file=out)
+    
+    def download_jenkins(self, provider: JenkinsProvider,
+                            options: DownloadOptions):
+        options.require_version(provider)
+        j = jenkins.Jenkins(str(provider.url))
+        job = jm.Job.get_job(j, provider.job)
+        if not job:
+            raise ValueError(f"Unknown job {provider.job}")
+        build: jm.Build | None
+        if options.version == "latest":
+            lsb = job.lastSuccessfulBuild
+            if not lsb:
+                raise ValueError(f"No latest sucessfull build found for {job.name}")
+            build = jm.Build.get_build(j, provider.job, lsb.number)
+        else:
+            try:
+                bn = int(options.version or "")
+            except:
+                raise ValueError("Version must be build number")
+            build = jm.Build.get_build(j, provider.job, bn)
+        if not build:
+            raise ValueError(f"Build {provider.job}#{options.version} not found")
+        if not build.result.is_complete_build():
+            raise ValueError(f"Build {build.fullDisplayName} is not completed: {build.result}")
+        self.info(f"✅ Found build {build.fullDisplayName}")
+        fn = options.selector.find_targets(
+            [a.fileName for a in build.artifacts])
+        filtered = [a for a in build.artifacts if a.fileName in fn]
+        if not filtered:
+            raise ValueError("No artifacts passed filter")
+        def download_artifact(a: jm.Artifact):
+            url = f"{build.url}artifact/"+a.relativePath
+            to = options.folder / a.fileName
+            self.info(
+                f"🌐 Downloading artifact {a.fileName} from build '{build.fullDisplayName}'")
+            self.download_file(self.session, url, to)
+            return to
+        files: dict[Path, jm.Artifact] = {}
+        for a in filtered:
+            p = download_artifact(a)
+            if p:
+                self.info(f"✅ Downloaded artifact to {p}")
+                files[p] = a
+            else:
+                self.logger.warning(f"⚠  Failed to download artifact {a.fileName}")
+        return JenkinsData(job, build, artifacts=list(files.values()), files=list(files.keys()))
 
 
 class Installer:
@@ -725,6 +781,8 @@ class Installer:
             d_data = self.assets.download_modrinth(provider, options)
         elif isinstance(provider, DirectUrlProvider):
             d_data = self.assets.download_direct_url(provider, options)
+        elif isinstance(provider, JenkinsProvider):
+            d_data = self.assets.download_jenkins(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
         return d_data
@@ -804,6 +862,7 @@ CACHES_REGISTRY.register_model(GithubReleaseCache)
 CACHES_REGISTRY.register_model(GithubActionsCache)
 CACHES_REGISTRY.register_model(ModrinthCache)
 CACHES_REGISTRY.register_model(PaperCoreCache)
+CACHES_REGISTRY.register_model(JenkinsCache)
 FILE_SELECTORS = ROOT_REGISTRY.create_model_registry("file_selectors", FileSelector)
 FILE_SELECTORS.register_model(AllFilesSelector)
 FILE_SELECTORS.register_model(SimpleJarSelector)

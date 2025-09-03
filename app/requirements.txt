@@ -4,3 +4,4 @@ click
 json5
 colorlog
 asteval
+python-jenkins

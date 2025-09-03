@@ -32,6 +32,7 @@
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
               "github-actions": "#/$defs/GithubActionsProvider",
+              "jenkins": "#/$defs/JenkinsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -49,6 +50,9 @@
             },
             {
               "$ref": "#/$defs/GithubActionsProvider"
+            },
+            {
+              "$ref": "#/$defs/JenkinsProvider"
             }
           ],
           "title": "Provider"
@@ -130,6 +134,7 @@
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
               "github-actions": "#/$defs/GithubActionsProvider",
+              "jenkins": "#/$defs/JenkinsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -147,6 +152,9 @@
             },
             {
               "$ref": "#/$defs/GithubActionsProvider"
+            },
+            {
+              "$ref": "#/$defs/JenkinsProvider"
             }
           ],
           "title": "Provider"
@@ -385,6 +393,50 @@
       "title": "GithubReleasesProvider",
       "type": "object"
     },
+    "JenkinsProvider": {
+      "properties": {
+        "file_selector": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistryKey__file_selectors"
+            },
+            {
+              "$ref": "#/$defs/RegistryUnion__file_selectors"
+            }
+          ],
+          "default": "simple-jar",
+          "title": "File Selector"
+        },
+        "url": {
+          "description": "URL to Jenkins instance",
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "job": {
+          "description": "Name of job",
+          "title": "Job",
+          "type": "string"
+        },
+        "type": {
+          "const": "jenkins",
+          "enum": [
+            "jenkins"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "job",
+        "type"
+      ],
+      "title": "JenkinsProvider",
+      "type": "object"
+    },
     "ModManifest": {
       "properties": {
         "provider": {
@@ -392,6 +444,7 @@
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
               "github-actions": "#/$defs/GithubActionsProvider",
+              "jenkins": "#/$defs/JenkinsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -409,6 +462,9 @@
             },
             {
               "$ref": "#/$defs/GithubActionsProvider"
+            },
+            {
+              "$ref": "#/$defs/JenkinsProvider"
             }
           ],
           "title": "Provider"
@@ -607,6 +663,7 @@
             "mapping": {
               "github": "#/$defs/GithubReleasesProvider",
               "github-actions": "#/$defs/GithubActionsProvider",
+              "jenkins": "#/$defs/JenkinsProvider",
               "modrinth": "#/$defs/ModrinthProvider",
               "url": "#/$defs/DirectUrlProvider"
             },
@@ -624,6 +681,9 @@
             },
             {
               "$ref": "#/$defs/GithubActionsProvider"
+            },
+            {
+              "$ref": "#/$defs/JenkinsProvider"
             }
           ],
           "title": "Provider"
