@@ -854,9 +854,10 @@ class Installer:
         d_data.files = [p.relative_to(
             self.folder) if not p.is_absolute() else p for p in d_data.files]
 
-        exprs = ExpressionProcessor(
-            logging.getLogger("Expr#"+asset_id), self.folder)
-        exprs.process(asset, d_data)
+        if asset.actions:
+            exprs = ExpressionProcessor(
+                logging.getLogger("Expr#"+asset_id), self.folder)
+            exprs.process(asset, d_data)
 
         cache = d_data.create_cache()
         result = AssetCache.create(asset_id, asset_hash, millis(), cache)
