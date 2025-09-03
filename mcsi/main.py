@@ -178,7 +178,6 @@ class DownloadOptions:
     asset: AssetManifest
     version: str | None
     folder: Path
-    selector: FileSelector
 
     def require_version(self, provider: AssetProvider):
         if self.version is None:
@@ -435,9 +434,10 @@ class AssetDownloader(ABC, Generic[PT, CT, DT]):
         ...
 
 class AssetInstaller:
-    def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
-        self.game_version = manifest.mc_version
-        self.auth = auth
+    def __init__(self, installer: "Installer", temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
+        self.game_version = installer.manifest.mc_version
+        self.registry = installer.registries
+        self.auth = installer.auth
         self.temp_folder = temp_folder
         self.logger = logger
         _user_agent: str | bytes = session.headers["User-Agent"]
@@ -448,8 +448,8 @@ class AssetInstaller:
         else:
             raise ValueError("Unknown user-agent")
         self.session = session
-        self.github = Github(auth=Auth.Token(auth.github)
-                             if auth.github else None, user_agent=user_agent)
+        self.github = Github(auth=Auth.Token(self.auth.github)
+                             if self.auth.github else None, user_agent=user_agent)
         self.modrinth = modrinth.Modrinth(session)
         self.temp_files: list[Path] = []
         self.repo_cache: dict[str, Repository] = {}
@@ -532,7 +532,7 @@ class AssetInstaller:
         self.info(f"✅ Found release {release.title}")
         assets = release.get_assets()
         m = {a.name: a for a in assets}
-        names = options.selector.find_targets(list(m))
+        names = provider.get_file_selector(self.registry).find_targets(list(m))
         files: list[Path] = []
         for k, v in m.items():
             if k not in names:
@@ -575,7 +575,7 @@ class AssetInstaller:
             self.download_github_file(artifact.archive_download_url, tmp)
             c = 0
             with ZipFile(tmp) as zf:
-                targets = options.selector.find_targets(zf.namelist())
+                targets = provider.get_file_selector(self.registry).find_targets(zf.namelist())
                 for name in targets:
                     self.info(f"Extracting {name}")
                     zf.extract(name, path=options.folder)
@@ -688,7 +688,7 @@ class AssetInstaller:
             raise ValueError(
                 f"Build {build.fullDisplayName} is not completed: {build.result}")
         self.info(f"✅ Found build {build.fullDisplayName}")
-        fn = options.selector.find_targets(
+        fn = provider.get_file_selector(self.registry).find_targets(
             [a.fileName for a in build.artifacts])
         filtered = [a for a in build.artifacts if a.fileName in fn]
         if not filtered:
@@ -727,8 +727,7 @@ class Installer:
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
         self.cache = CacheStore(
             self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
-        self.assets = AssetInstaller(
-            self.manifest, auth, self.folder / "tmp", self.logger, self.session)
+        self.assets = AssetInstaller(self, self.folder / "tmp", self.logger, self.session)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
 
@@ -822,9 +821,7 @@ class Installer:
         asset_folder = asset.get_base_folder()
         target_folder = asset_folder if asset_folder.is_absolute() else self.folder / \
             asset_folder
-        selector = provider.create_file_selector(self.registries)
-        options = DownloadOptions(
-            asset, asset.version, target_folder, selector)
+        options = DownloadOptions(asset, asset.version, target_folder)
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
         try:

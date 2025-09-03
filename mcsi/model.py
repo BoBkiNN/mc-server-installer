@@ -63,6 +63,7 @@ class AssetProvider(ABC, TypedModel):
     # TODO fallback providers
     file_selector: FileSelectorKey | FileSelectorUnion = "all"
     """Selector used to choose files from multiple"""
+    _file_selector: FileSelector | None = None
     
     class Config:
         frozen = True
@@ -71,6 +72,14 @@ class AssetProvider(ABC, TypedModel):
     def create_asset_id(self) -> str:
         """Returns asset id without versions. Do not invokes any IO"""
         ...
+    
+    def get_file_selector(self, registries: Registries):
+        if self._file_selector:
+            return self._file_selector
+        else:
+            s = self.create_file_selector(registries)
+            self._file_selector = s
+            return s
 
     def create_file_selector(self, registries: Registries) -> FileSelector:
         reg = registries.get_registry(FileSelector)
