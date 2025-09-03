@@ -380,7 +380,7 @@ class Manifest(BaseModel):
                     f"Cannot find loader for manifest extension {ext}")
         ver = d.get("version", None)
         if ver != __version__:
-            logger.warning("Manifest was made for different version. You might expect errors")
+            logger.warning(f"Manifest was made for different version ({ver}). You might expect errors")
         try:
             return Manifest.model_validate(d, context={REGISTRIES_CONTEXT_KEY: registries})
         except ValidationError as e:
