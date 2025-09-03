@@ -24,7 +24,7 @@
                 "install"
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/app"
+            "cwd": "${workspaceFolder}/mcsi"
         },
         {
             "name": "Generate schema",
@@ -34,11 +34,11 @@
             "args": [
                 "schema",
                 "--out",
-                "../app/manifest_schema.json",
+                "../mcsi/manifest_schema.json",
                 "-p"
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/app"
+            "cwd": "${workspaceFolder}/mcsi"
         }
     ]
 }

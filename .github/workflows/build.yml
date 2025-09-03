@@ -22,7 +22,7 @@ jobs:
       - name: Pack app
         run: |
           mkdir -p out
-          python -m zipapp app -o out/mcsi-${BUILD_NUM}.pyz -m main:main
+          python -m zipapp mcsi -o out/mcsi-${BUILD_NUM}.pyz -m main:main
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -52,12 +52,12 @@ jobs:
 
       - name: Install dependencies locally
         run: |
-          pip install -r app/requirements.txt -t app
+          pip install -r mcsi/requirements.txt -t mcsi
 
       - name: Build fat zipapp
         run: |
           mkdir -p out
-          python -m zipapp app -o out/mcsi-${BUILD_NUM}-fat-${{matrix.os_name}}.pyz -m main:main
+          python -m zipapp mcsi -o out/mcsi-${BUILD_NUM}-fat-${{matrix.os_name}}.pyz -m main:main
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
