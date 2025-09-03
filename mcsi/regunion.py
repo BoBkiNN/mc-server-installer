@@ -102,11 +102,10 @@ class RegistryUnion:
             raise ValueError(f"Unknown registry {self.registry_key}")
         tagged_choices: dict[str, core_schema.CoreSchema] = {}
         for key, model in registry.all().items():
-            sch = model.__pydantic_core_schema__
-            if isinstance(sch, MockCoreSchema):
-                model.model_rebuild()
-            if isinstance(sch, MockCoreSchema):
-                raise ValueError(f"model {model} schema is MockCoreSchema")
+            if isinstance(model.__pydantic_core_schema__, MockCoreSchema):
+                model.model_rebuild(force=True)
+            if isinstance(model.__pydantic_core_schema__, MockCoreSchema):
+                raise ValueError(f"model {model} schema is MockCoreSchema! Seems like there are some delayed types like list[\"Type\"]")
             # type: ignore
             tagged_choices[key] = model.__pydantic_core_schema__
 
