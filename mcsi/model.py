@@ -120,7 +120,7 @@ Action = Annotated[
     Field(discriminator="type"),
 ]
 
-class AssetProvider(ABC, TypedModel):
+class Asset(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
     file_selector: FileSelectorKey | FileSelectorUnion = "all"
     """Selector used to choose files from multiple"""
@@ -178,7 +178,7 @@ class AssetProvider(ABC, TypedModel):
 LatestOrStr: TypeAlias = Literal["latest"] | str
 
 
-class ModrinthProvider(AssetProvider):
+class ModrinthAsset(Asset):
     """Downloads asset from modrinth"""
     version: LatestOrStr
     project_id: str
@@ -195,7 +195,7 @@ class ModrinthProvider(AssetProvider):
         return self.project_id
 
 
-class GithubReleasesProvider(AssetProvider):
+class GithubReleasesAsset(Asset):
     """Downloads asset from github"""
     version: LatestOrStr
     repository: str
@@ -206,7 +206,7 @@ class GithubReleasesProvider(AssetProvider):
         return self.repository
 
 
-class GithubActionsProvider(AssetProvider):
+class GithubActionsAsset(Asset):
     """Downloads artifact from github actions"""
     version: LatestOrStr
     repository: str
@@ -221,7 +221,7 @@ class GithubActionsProvider(AssetProvider):
         return self.repository+"/"+self.workflow+"@"+self.branch
 
 
-class DirectUrlProvider(AssetProvider):
+class DirectUrlAsset(Asset):
     """Downloads asset from specified url"""
     url: HttpUrl
     file_name: str | None = None
@@ -230,7 +230,7 @@ class DirectUrlProvider(AssetProvider):
     def create_asset_id(self) -> str:
         return str(self.url)
 
-class JenkinsProvider(AssetProvider):
+class JenkinsAsset(Asset):
     version: Literal["latest"] | int
     url: HttpUrl
     """URL to Jenkins instance"""
@@ -243,11 +243,6 @@ class JenkinsProvider(AssetProvider):
         host = self.url.host or "Unknown"
         return f"{self.job}@{host}"
 
-class AssetType(Enum):
-    MOD = "mod"
-    PLUGIN = "plugin"
-    DATAPACK = "datapack"
-    CUSTOM = "custom"
 
 class CoreManifest(BaseModel):
     file_name: str | None = None
@@ -289,7 +284,7 @@ Core = Annotated[
     Field(discriminator="type"),
 ]
 
-ProviderUnion: TypeAlias = Annotated[AssetProvider, RegistryUnion(
+AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(
     "providers"), Field(title="Provider")]
 
 # ProviderUnion: TypeAlias = Annotated[Union[ModrinthProvider, GithubReleasesProvider], Field(title="Provider", discriminator="type")]
@@ -299,10 +294,10 @@ class Manifest(BaseModel):
     mc_version: str
     core: Core
 
-    mods: list[ProviderUnion] = []
-    plugins: list[ProviderUnion] = []
-    datapacks: list[ProviderUnion] = []
-    customs: list[ProviderUnion] = []
+    mods: list[AssetUnion] = []
+    plugins: list[AssetUnion] = []
+    datapacks: list[AssetUnion] = []
+    customs: list[AssetUnion] = []
 
     class Config:
         frozen = True

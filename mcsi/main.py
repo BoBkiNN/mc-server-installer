@@ -12,7 +12,7 @@ import click
 import colorlog
 import jenkins
 import jenkins_models as jm
-from model import AssetProvider, Path
+from model import Asset, Path
 import modrinth
 import papermc_fill as papermc
 import requests
@@ -96,8 +96,8 @@ class CacheStore:
                 "This might mean that all cached data is invalid in current new location, so resetting")
             self.reset()
 
-    def invalidate_asset(self, asset: str | AssetProvider, reason: InvalidReason | None = None):
-        id = asset.resolve_asset_id() if isinstance(asset, AssetProvider) else asset
+    def invalidate_asset(self, asset: str | Asset, reason: InvalidReason | None = None):
+        id = asset.resolve_asset_id() if isinstance(asset, Asset) else asset
         removed = self.cache.assets.pop(id, None)
         if removed:
             for p in removed.data.files:
@@ -110,9 +110,9 @@ class CacheStore:
             self.logger.info(msg)
             self.dirty = True
 
-    def check_asset(self, asset: str | AssetProvider, hash: str | None):
+    def check_asset(self, asset: str | Asset, hash: str | None):
         """Returns None if cache is invalid"""
-        id = asset.resolve_asset_id() if isinstance(asset, AssetProvider) else asset
+        id = asset.resolve_asset_id() if isinstance(asset, Asset) else asset
         entry = self.cache.assets.get(id, None)
         if not entry:
             return None
@@ -384,7 +384,7 @@ class ExpressionProcessor:
         else:
             raise ValueError(f"Unknown action {type(action)}")
 
-    def process(self, asset: AssetProvider, group: "AssetsGroup", data: DownloadData):
+    def process(self, asset: Asset, group: "AssetsGroup", data: DownloadData):
         ls = asset.actions
         if not ls:
             return data
@@ -425,7 +425,7 @@ class UpdateStatus(Enum):
 
 class AssetsGroup(ABC):
     @abstractmethod
-    def get_folder(self, asset: AssetProvider) -> Path:
+    def get_folder(self, asset: Asset) -> Path:
         ...
     
     @abstractmethod
@@ -438,7 +438,7 @@ class AssetsGroup(ABC):
         ...
 
 class PluginsGroup(AssetsGroup):
-    def get_folder(self, asset: AssetProvider) -> Path:
+    def get_folder(self, asset: Asset) -> Path:
         return Path("plugins")
     
     def get_manifest_name(self) -> str:
@@ -449,7 +449,7 @@ class PluginsGroup(AssetsGroup):
         return "plugin"
 
 class ModsGroup(AssetsGroup):
-    def get_folder(self, asset: AssetProvider) -> Path:
+    def get_folder(self, asset: Asset) -> Path:
         return Path("mods")
     
     def get_manifest_name(self) -> str:
@@ -461,7 +461,7 @@ class ModsGroup(AssetsGroup):
 
 
 class DatapacksGroup(AssetsGroup):
-    def get_folder(self, asset: AssetProvider) -> Path:
+    def get_folder(self, asset: Asset) -> Path:
         return Path("world") / "datapacks"
 
     def get_manifest_name(self) -> str:
@@ -472,7 +472,7 @@ class DatapacksGroup(AssetsGroup):
         return "datapack"
 
 class CustomsGroup(AssetsGroup):
-    def get_folder(self, asset: AssetProvider) -> Path:
+    def get_folder(self, asset: Asset) -> Path:
         if asset.folder is None:
             raise ValueError("No folder set for custom asset")
         return asset.folder
@@ -570,11 +570,11 @@ class AssetInstaller:
             session.headers["Accept"] = "application/octet-stream"
         self.download_file(session, url, out_path)
 
-    def download_github_release(self, provider: GithubReleasesProvider,
+    def download_github_release(self, asset: GithubReleasesAsset,
                                 group: AssetsGroup):
-        self.debug(f"Getting repository {provider.repository}")
-        repo = self.get_repo(provider.repository)
-        version = provider.version
+        self.debug(f"Getting repository {asset.repository}")
+        repo = self.get_repo(asset.repository)
+        version = asset.version
         release: GitRelease
         if version == "latest":
             release = repo.get_latest_release()
@@ -583,8 +583,8 @@ class AssetInstaller:
         self.info(f"✅ Found release {release.title}")
         assets = release.get_assets()
         m = {a.name: a for a in assets}
-        names = provider.get_file_selector(self.registry).find_targets(list(m))
-        folder = group.get_folder(provider)
+        names = asset.get_file_selector(self.registry).find_targets(list(m))
+        folder = group.get_folder(asset)
         files: list[Path] = []
         for k, v in m.items():
             if k not in names:
@@ -597,7 +597,7 @@ class AssetInstaller:
         self.info(f"✅ Downloaded {len(files)} assets from release")
         return GithubReleaseData(repo, release, files=files)
 
-    def download_github_actions(self, asset: GithubActionsProvider,
+    def download_github_actions(self, asset: GithubActionsAsset,
                                 group: AssetsGroup):
         repo = self.get_repo(asset.repository)
         workflow = repo.get_workflow(asset.workflow)
@@ -638,7 +638,7 @@ class AssetInstaller:
             self.remove_temp_file(tmp)
         return GithubActionsData(repo, workflow, run, files=files)
 
-    def download_modrinth(self, asset: ModrinthProvider, group: AssetsGroup):
+    def download_modrinth(self, asset: ModrinthAsset, group: AssetsGroup):
         self.debug(f"Getting project {asset.project_id}")
         project = self.modrinth.get_project(asset.project_id)
         if not project:
@@ -699,7 +699,7 @@ class AssetInstaller:
         self.info(f"✅ Downloaded {len(files)} files")
         return ModrinthData(ver, files=files)
 
-    def download_direct_url(self, asset: DirectUrlProvider,
+    def download_direct_url(self, asset: DirectUrlAsset,
                             group: AssetsGroup):
         if asset.file_name:
             name = asset.file_name
@@ -713,7 +713,7 @@ class AssetInstaller:
         self.download_file(requests.Session(), str(asset.url), out)
         return DownloadData(files=[out], primary_file=out)
 
-    def download_jenkins(self, asset: JenkinsProvider, group: AssetsGroup):
+    def download_jenkins(self, asset: JenkinsAsset, group: AssetsGroup):
         j = jenkins.Jenkins(str(asset.url))
         job = jm.Job.get_job(j, asset.job)
         if not job:
@@ -837,23 +837,23 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
 
-    def download_asset(self, asset: AssetProvider, group: AssetsGroup):
+    def download_asset(self, asset: Asset, group: AssetsGroup):
         data: DownloadData
-        if isinstance(asset, GithubReleasesProvider):
+        if isinstance(asset, GithubReleasesAsset):
             data = self.assets.download_github_release(asset, group)
-        elif isinstance(asset, GithubActionsProvider):
+        elif isinstance(asset, GithubActionsAsset):
             data = self.assets.download_github_actions(asset, group)
-        elif isinstance(asset, ModrinthProvider):
+        elif isinstance(asset, ModrinthAsset):
             data = self.assets.download_modrinth(asset, group)
-        elif isinstance(asset, DirectUrlProvider):
+        elif isinstance(asset, DirectUrlAsset):
             data = self.assets.download_direct_url(asset, group)
-        elif isinstance(asset, JenkinsProvider):
+        elif isinstance(asset, JenkinsAsset):
             data = self.assets.download_jenkins(asset, group)
         else:
-            raise ValueError(f"Unsupported provider {type(asset)}")
+            raise ValueError(f"Unsupported asset type {type(asset)}")
         return data
 
-    def install(self, asset: AssetProvider, group: AssetsGroup) -> tuple[AssetCache, bool]:
+    def install(self, asset: Asset, group: AssetsGroup) -> tuple[AssetCache, bool]:
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
         cached = self.cache.check_asset(
@@ -888,14 +888,14 @@ class Installer:
             self.cache.store_asset(result)
         return result, False
 
-    def install_list(self, ls: Sequence[AssetProvider], group: AssetsGroup):
+    def install_list(self, ls: Sequence[Asset], group: AssetsGroup):
         if not ls:
             return
         total = len(ls)
         entry_name = group.unit_name
         self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
-        failed: list[AssetProvider] = []
-        cached: list[AssetProvider] = []
+        failed: list[Asset] = []
+        cached: list[Asset] = []
         for a in ls:
             key = a.resolve_asset_id()
             try:
@@ -939,10 +939,10 @@ FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
     "file_selectors", FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
-PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", AssetProvider)
-PROVIDERS.register_models(ModrinthProvider, GithubReleasesProvider,
-                          DirectUrlProvider, GithubActionsProvider,
-                          JenkinsProvider)
+PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", Asset)
+PROVIDERS.register_models(ModrinthAsset, GithubReleasesAsset,
+                          DirectUrlAsset, GithubActionsAsset,
+                          JenkinsAsset)
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
@@ -1002,7 +1002,7 @@ def main():
     "--github-token",
     type=str,
     default=None,
-    help="GitHub token for github providers",
+    help="GitHub token for github assets",
 )
 @click.option(
     "--debug",
