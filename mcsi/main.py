@@ -5,32 +5,33 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from zipfile import ZipFile
 from typing import Sequence
+from zipfile import ZipFile
 
 import click
 import colorlog
+import jenkins
+import jenkins_models as jm
 import modrinth
 import papermc_fill as papermc
 import requests
 import tqdm
+from asteval import Interpreter
+from asteval.astutils import ExceptionHolder
 from github import Auth, Github, UnknownObjectException
 from github.Artifact import Artifact
 from github.GitRelease import GitRelease
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
-from asteval import Interpreter
-from asteval.astutils import ExceptionHolder
 from model import *
 from model import FilesCache
 from regunion import make_registry_schema_generator
-import jenkins
-import jenkins_models as jm
 
 
 def millis():
-    return int(time.time()*1000) 
+    return int(time.time()*1000)
+
 
 class CacheStore:
     def __init__(self, file: Path, mf: Manifest, registries: Registries, debug: bool, folder: Path) -> None:
@@ -44,17 +45,17 @@ class CacheStore:
         """Specifies if cache was modified"""
         self.debug = debug
         self.folder = folder
-    
+
     def save(self):
         if not self.dirty:
             return
         self.cache.save(self.file, self.registries, self.debug)
         self.dirty = False
-    
+
     def reset(self):
         self.cache = Cache.create(self.mf, self.folder)
         self.logger.debug("Cache reset.")
-    
+
     def load(self, registries: Registries):
         if not self.file.is_file():
             self.reset()
@@ -68,23 +69,30 @@ class CacheStore:
                     msg = e['msg']
                     inp = e["input"]
                     type_ = e.get('type', 'unknown')
-                    lines.append(f"{k}.{loc} {msg} [type={type_}, input={inp}]")
+                    lines.append(
+                        f"{k}.{loc} {msg} [type={type_}, input={inp}]")
                 t = "\n".join(lines)
-                self.logger.warning(f"Failed to load asset cache entry {k}: \n{t}")
-            self.logger.debug(f"Loaded cache with {len(self.cache.assets)} assets")
+                self.logger.warning(
+                    f"Failed to load asset cache entry {k}: \n{t}")
+            self.logger.debug(
+                f"Loaded cache with {len(self.cache.assets)} assets")
         except Exception as e:
-            self.logger.error("Exception loading stored cache. Resetting", exc_info=e)
+            self.logger.error(
+                "Exception loading stored cache. Resetting", exc_info=e)
             self.reset()
             return
         if self.cache.mc_version and self.cache.mc_version != self.mf.mc_version:
-            self.logger.info(f"Resetting cache due to changed minecraft version {self.cache.mc_version} -> {self.mf.mc_version}")
+            self.logger.info(
+                f"Resetting cache due to changed minecraft version {self.cache.mc_version} -> {self.mf.mc_version}")
             self.reset()
         abs_folder = self.folder.resolve()
         if self.cache.server_folder != abs_folder:
-            self.logger.warning(f"Server folder differs from cache: {self.cache.server_folder} -> {abs_folder}")
-            self.logger.warning("This might mean that all cached data is invalid in current new location, so resetting")
+            self.logger.warning(
+                f"Server folder differs from cache: {self.cache.server_folder} -> {abs_folder}")
+            self.logger.warning(
+                "This might mean that all cached data is invalid in current new location, so resetting")
             self.reset()
-    
+
     def invalidate_asset(self, asset: str | AssetManifest, reason: InvalidReason | None = None):
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
         removed = self.cache.assets.pop(id, None)
@@ -98,7 +106,7 @@ class CacheStore:
                 msg += f" due to: {reason.reason}"
             self.logger.info(msg)
             self.dirty = True
-    
+
     def check_asset(self, asset: str | AssetManifest, hash: str | None):
         """Returns None if cache is invalid"""
         id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
@@ -106,18 +114,19 @@ class CacheStore:
         if not entry:
             return None
         actual_hash_str = None if hash is None else hash[:7]+".."
-        self.logger.debug(f"Checking cached asset {entry.asset_id} {entry.asset_hash[:7]}.. with actual {actual_hash_str}")
+        self.logger.debug(
+            f"Checking cached asset {entry.asset_id} {entry.asset_hash[:7]}.. with actual {actual_hash_str}")
         state = entry.is_valid(self.folder, hash)
         if state.is_ok():
             return entry
         else:
             self.invalidate_asset(id, state.value)
             return None
-    
+
     def store_asset(self, asset: AssetCache):
         self.cache.assets[asset.asset_id] = asset
         self.dirty = True
-    
+
     def check_all_assets(self, manifest: Manifest):
         c = 0
         for asset in list(self.cache.assets):
@@ -126,18 +135,18 @@ class CacheStore:
                 c += 1
         if c:
             self.logger.info(f"⚠  {c} asset(s) were invalidated")
-        
+
     def invalidate_core(self):
         p = self.cache.core
         if p:
             self.cache.core = None
             self.dirty = True
             self.logger.info("⚠  Core invalidated")
-    
+
     def store_core(self, core: CoreCache):
         self.cache.core = core
         self.dirty = True
-    
+
     def check_core(self, core: Core, mc_ver: str):
         cached = self.cache.core
         if not cached:
@@ -147,13 +156,15 @@ class CacheStore:
             self.invalidate_core()
             return None
         if cached.type != core.type:
-            self.logger.debug(f"Invalidating core due to changed type {cached.type} -> {core.type}")
+            self.logger.debug(
+                f"Invalidating core due to changed type {cached.type} -> {core.type}")
             self.invalidate_core()
             return None
         vhash = core.hash_from_ver(mc_ver)
         if vhash is not None and cached.version_hash != vhash:
             # hash is provided and not matching
-            self.logger.debug(f"Invalidating core due to changed version hash {cached.version_hash} -> {vhash}")
+            self.logger.debug(
+                f"Invalidating core due to changed version hash {cached.version_hash} -> {vhash}")
             self.invalidate_core()
             return None
         return cached
@@ -161,6 +172,7 @@ class CacheStore:
 
 class Authorizaition(BaseModel):
     github: str | None = None
+
 
 @dataclass
 class DownloadOptions:
@@ -171,10 +183,13 @@ class DownloadOptions:
 
     def require_version(self, provider: AssetProvider):
         if self.version is None:
-            raise ValueError(f"provider {provider.get_type()} requires version to be specified in manifest")
+            raise ValueError(
+                f"provider {provider.get_type()} requires version to be specified in manifest")
         return self.version
 
 # Probably shit class
+
+
 @dataclass(kw_only=True)
 class DownloadData:
     files: list[Path]
@@ -188,14 +203,14 @@ class DownloadData:
             return self.first_file
         else:
             raise ValueError("No files set")
-    
+
     @primary.setter
     def primary(self, file: Path):
         if self.primary_file:
             self.primary_file = file
         else:
             self.first_file = file
-    
+
     def unset_primary(self):
         self.primary_file = None
 
@@ -205,7 +220,7 @@ class DownloadData:
             return self.files[0]
         else:
             return None
-    
+
     @first_file.setter
     def first_file(self, file: Path):
         if self.files:
@@ -215,6 +230,7 @@ class DownloadData:
 
     def create_cache(self) -> FilesCache:
         return FilesCache(files=self.files)
+
 
 @dataclass
 class GithubReleaseData(DownloadData):
@@ -228,6 +244,7 @@ class GithubReleaseData(DownloadData):
     def create_cache(self) -> FilesCache:
         return GithubReleaseCache(files=self.files, tag=self.tag_name)
 
+
 @dataclass
 class GithubActionsData(DownloadData):
     repo: Repository
@@ -237,12 +254,14 @@ class GithubActionsData(DownloadData):
     def create_cache(self) -> FilesCache:
         return GithubActionsCache(files=self.files, run_id=self.run.id, run_number=self.run.run_number)
 
+
 @dataclass
 class ModrinthData(DownloadData):
     version: modrinth.Version
 
     def create_cache(self) -> FilesCache:
         return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
+
 
 @dataclass
 class JenkinsData(DownloadData):
@@ -252,6 +271,7 @@ class JenkinsData(DownloadData):
 
     def create_cache(self) -> FilesCache:
         return JenkinsCache(files=self.files, build_number=self.build.number)
+
 
 def is_valid_path(path_str: str) -> bool:
     try:
@@ -285,12 +305,13 @@ def is_valid_path(path_str: str) -> bool:
 
     return True
 
+
 class ExpressionProcessor:
     def __init__(self, logger: logging.Logger, folder: Path) -> None:
         self.logger = logger
         self.folder = folder
         self.intpr = Interpreter(minimal=True)
-    
+
     def log_error(self, error: ExceptionHolder, expr: Expr, source_key: str, source_text: str):
         if not error.exc:
             exc_name = "UnknownError"
@@ -323,7 +344,7 @@ class ExpressionProcessor:
             f"  {marker} (line {lineno}, column {col})"
         )
         self.logger.error(msg)
-    
+
     def eval(self, expr: Expr, source_key: str, source_text: str):
         res = self.intpr.eval(expr)
         errors: list[ExceptionHolder] = self.intpr.error
@@ -332,7 +353,7 @@ class ExpressionProcessor:
             return res
         self.log_error(error, expr, source_key, source_text)
         return error
-    
+
     def eval_template(self, expr: TemplateExpr, source_key: str, source_text: str):
         parts = expr.parts()
         bs = ""
@@ -353,14 +374,15 @@ class ExpressionProcessor:
             return Path(text)
         else:
             return None
-        
+
     def handle(self, key: str, action: BaseAction, data: DownloadData):
         # TODO return bool or enum stating error or ok
         if_code = action.if_
         if if_code:
             v = self.eval(if_code, key+".if", str(if_code))
             if isinstance(v, ExceptionHolder):
-                self.logger.error("Failed to process if statement, see above errors for details")
+                self.logger.error(
+                    "Failed to process if statement, see above errors for details")
                 return
             if isinstance(v, bool):
                 b = v
@@ -397,7 +419,8 @@ class ExpressionProcessor:
             self.logger.info(f"✅ Renamed file from {frp} to {top}")
         elif isinstance(action, UnzipFile):
             if action.folder.root:
-                folder = self.eval_template(action.folder, key+".folder", action.folder.root)
+                folder = self.eval_template(
+                    action.folder, key+".folder", action.folder.root)
                 if isinstance(folder, ExceptionHolder):
                     return
             else:
@@ -411,7 +434,7 @@ class ExpressionProcessor:
             self.logger.info(f"✅ Unzipped {data.primary} into {folder}")
         else:
             raise ValueError(f"Unknown action {type(action)}")
-    
+
     def process(self, asset: AssetManifest, data: DownloadData):
         ls = asset.actions
         if not ls:
@@ -428,8 +451,9 @@ class ExpressionProcessor:
             try:
                 self.handle(key, a, data)
             except Exception as e:
-                self.logger.error(f"Failed to handle action {type(a)} at {key}", exc_info=e)
-            
+                self.logger.error(
+                    f"Failed to handle action {type(a)} at {key}", exc_info=e)
+
 
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
@@ -445,17 +469,18 @@ class AssetInstaller:
         else:
             raise ValueError("Unknown user-agent")
         self.session = session
-        self.github = Github(auth=Auth.Token(auth.github) if auth.github else None, user_agent=user_agent)
+        self.github = Github(auth=Auth.Token(auth.github)
+                             if auth.github else None, user_agent=user_agent)
         self.modrinth = modrinth.Modrinth(session)
         self.temp_files: list[Path] = []
         self.repo_cache: dict[str, Repository] = {}
-    
+
     def info(self, msg: object):
         self.logger.info(msg)
 
     def debug(self, msg: object):
         self.logger.debug(msg)
-    
+
     def get_repo(self, name: str):
         if name in self.repo_cache:
             return self.repo_cache[name]
@@ -465,14 +490,14 @@ class AssetInstaller:
             raise ValueError(f"Unknown repository {name}")
         self.repo_cache[name] = repo
         return repo
-    
+
     def get_temp_file(self):
         self.temp_folder.mkdir(parents=True, exist_ok=True)
         id = uuid.uuid4()
         ret = self.temp_folder / str(id)
         self.temp_files.append(ret)
         return ret
-    
+
     def remove_temp_file(self, path: Path):
         self.temp_files.remove(path)
         if path.exists():
@@ -480,7 +505,7 @@ class AssetInstaller:
         if len(self.temp_files) == 0:
             if len(os.listdir(self.temp_folder)) == 0:
                 os.rmdir(self.temp_folder)
-    
+
     def clear_temp(self):
         for path in list(self.temp_files):
             if path.exists():
@@ -488,7 +513,7 @@ class AssetInstaller:
             self.temp_files.remove(path)
         if self.temp_folder.exists() and not os.listdir(self.temp_folder):
             os.rmdir(self.temp_folder)
-    
+
     def download_file(self, session: requests.Session, url: str, out_path: Path):
         response = session.get(url, stream=True)
         response.raise_for_status()
@@ -505,7 +530,7 @@ class AssetInstaller:
                     f.write(chunk)
                     bar.update(len(chunk))
         bar.close()
-    
+
     def download_github_file(self, url: str, out_path: Path, is_binary: bool = False):
         session = requests.Session()
         session.headers.update(self.session.headers)
@@ -515,7 +540,7 @@ class AssetInstaller:
             session.headers["Accept"] = "application/octet-stream"
         self.download_file(session, url, out_path)
 
-    def download_github_release(self, provider: GithubReleasesProvider, 
+    def download_github_release(self, provider: GithubReleasesProvider,
                                 options: DownloadOptions):
         self.debug(f"Getting repository {provider.repository}")
         repo = self.get_repo(provider.repository)
@@ -531,7 +556,8 @@ class AssetInstaller:
         names = options.selector.find_targets(list(m))
         files: list[Path] = []
         for k, v in m.items():
-            if k not in names: continue
+            if k not in names:
+                continue
             outPath = options.folder / k
             self.info(f"🌐 Downloading artifact {k} to {outPath}..")
             self.download_github_file(v.url, outPath, True)
@@ -539,9 +565,9 @@ class AssetInstaller:
             files.append(outPath)
         self.info(f"✅ Downloaded {len(files)} assets from release")
         return GithubReleaseData(repo, release, files=files)
-    
-    def download_github_actions(self, provider: GithubActionsProvider, 
-                                         options: DownloadOptions):
+
+    def download_github_actions(self, provider: GithubActionsProvider,
+                                options: DownloadOptions):
         repo = self.get_repo(provider.repository)
         workflow = repo.get_workflow(provider.workflow)
         runs = workflow.get_runs(branch=provider.branch)  # type: ignore
@@ -579,7 +605,7 @@ class AssetInstaller:
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             self.remove_temp_file(tmp)
         return GithubActionsData(repo, workflow, run, files=files)
-    
+
     def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
         if provider.version_is_id:
             options.require_version(provider)
@@ -589,9 +615,11 @@ class AssetInstaller:
             raise ValueError(f"Unknown project {provider.project_id}")
         self.debug(f"Getting project versions..")
         game_versions = [] if provider.ignore_game_version else [self.game_version]
-        vers = self.modrinth.get_versions(provider.project_id, ["spigot", "paper"], game_versions)
+        vers = self.modrinth.get_versions(
+            provider.project_id, ["spigot", "paper"], game_versions)
         if not vers:
-            raise ValueError(f"Cannot find versions for project {provider.project_id}")
+            raise ValueError(
+                f"Cannot find versions for project {provider.project_id}")
         name_pattern = provider.version_name_pattern
         filtered: list[modrinth.Version] = []
         self.debug(f"Got {len(vers)} versions from {project.title}")
@@ -606,6 +634,7 @@ class AssetInstaller:
             filtered.append(ver)
         if len(filtered) == 0:
             raise ValueError("No valid versions found")
+
         def download_version(ver: modrinth.Version):
             # TODO use_primary and file_name_pattern properties here to return multiple files
             primary = ver.get_primary()
@@ -625,19 +654,22 @@ class AssetInstaller:
                 self.info(f"✅ Downloaded latest version {ver.name}")
                 return ModrinthData(ver, files=files)
             else:
-                raise ValueError(f"Failed to download version {ver.name}. See errors above for details")
+                raise ValueError(
+                    f"Failed to download version {ver.name}. See errors above for details")
         # at this moment version is not latest and not an version id, so this is version_number
-        ver = next((v for v in filtered if v.version_number == options.version), None)
+        ver = next(
+            (v for v in filtered if v.version_number == options.version), None)
         if not ver:
-            raise ValueError(f"Failed to find valid version with number {options.version} out of {len(filtered)}")
+            raise ValueError(
+                f"Failed to find valid version with number {options.version} out of {len(filtered)}")
         files = download_version(ver)
         if not files:
             raise ValueError(f"No valid files found in version {ver}")
         self.info(f"✅ Downloaded {len(files)} files")
         return ModrinthData(ver, files=files)
-    
+
     def download_direct_url(self, provider: DirectUrlProvider,
-                                options: DownloadOptions):
+                            options: DownloadOptions):
         if provider.file_name:
             name = provider.file_name
         else:
@@ -649,9 +681,9 @@ class AssetInstaller:
         out = options.folder / name
         self.download_file(requests.Session(), str(provider.url), out)
         return DownloadData(files=[out], primary_file=out)
-    
+
     def download_jenkins(self, provider: JenkinsProvider,
-                            options: DownloadOptions):
+                         options: DownloadOptions):
         options.require_version(provider)
         j = jenkins.Jenkins(str(provider.url))
         job = jm.Job.get_job(j, provider.job)
@@ -661,7 +693,8 @@ class AssetInstaller:
         if options.version == "latest":
             lsb = job.lastSuccessfulBuild
             if not lsb:
-                raise ValueError(f"No latest sucessfull build found for {job.name}")
+                raise ValueError(
+                    f"No latest sucessfull build found for {job.name}")
             build = jm.Build.get_build(j, provider.job, lsb.number)
         else:
             try:
@@ -670,15 +703,18 @@ class AssetInstaller:
                 raise ValueError("Version must be build number")
             build = jm.Build.get_build(j, provider.job, bn)
         if not build:
-            raise ValueError(f"Build {provider.job}#{options.version} not found")
+            raise ValueError(
+                f"Build {provider.job}#{options.version} not found")
         if not build.result.is_complete_build():
-            raise ValueError(f"Build {build.fullDisplayName} is not completed: {build.result}")
+            raise ValueError(
+                f"Build {build.fullDisplayName} is not completed: {build.result}")
         self.info(f"✅ Found build {build.fullDisplayName}")
         fn = options.selector.find_targets(
             [a.fileName for a in build.artifacts])
         filtered = [a for a in build.artifacts if a.fileName in fn]
         if not filtered:
             raise ValueError("No artifacts passed filter")
+
         def download_artifact(a: jm.Artifact):
             url = f"{build.url}artifact/"+a.relativePath
             to = options.folder / a.fileName
@@ -693,12 +729,13 @@ class AssetInstaller:
                 self.info(f"✅ Downloaded artifact to {p}")
                 files[p] = a
             else:
-                self.logger.warning(f"⚠  Failed to download artifact {a.fileName}")
+                self.logger.warning(
+                    f"⚠  Failed to download artifact {a.fileName}")
         return JenkinsData(job, build, artifacts=list(files.values()), files=list(files.keys()))
 
 
 class Installer:
-    def __init__(self, manifest: Manifest, manifest_path: Path, 
+    def __init__(self, manifest: Manifest, manifest_path: Path,
                  server_folder: Path, auth: Authorizaition, debug: bool,
                  registries: Registries) -> None:
         self.registries = registries
@@ -709,11 +746,13 @@ class Installer:
         self.logger = logging.getLogger("Installer")
         self.session = requests.Session()
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
-        self.cache = CacheStore(self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
-        self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger, self.session)
+        self.cache = CacheStore(
+            self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
+        self.assets = AssetInstaller(
+            self.manifest, auth, self.folder / "tmp", self.logger, self.session)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
-    
+
     def prepare(self):
         self.cache.load(self.registries)
         self.cache.check_all_assets(self.manifest)
@@ -724,7 +763,7 @@ class Installer:
         self.cache.save()
         self.assets.clear_temp()
         self.session.close()
-    
+
     def install_paper_core(self, core: PaperCoreManifest) -> CoreCache:
         api = papermc.PaperMcFill(self.session)
         mc = self.manifest.mc_version
@@ -736,17 +775,20 @@ class Installer:
             if builds == None:
                 build = None
             else:
-                build = next((b for b in builds if b.channel == PaperChannel.STABLE), None)
+                build = next((b for b in builds if b.channel ==
+                             PaperChannel.STABLE), None)
         elif core.channels:
             builds = api.get_builds("paper", mc)
             if builds == None:
                 build = None
             else:
-                build = next((b for b in builds if b.channel in core.channels), None)
+                build = next(
+                    (b for b in builds if b.channel in core.channels), None)
         else:
             build = api.get_build("paper", mc, core.build)
         if build is None:
-            raise ValueError(f"Failed to find paper build {core.build} for MC {mc}")
+            raise ValueError(
+                f"Failed to find paper build {core.build} for MC {mc}")
         download = build.get_default_download()
         jar_name = core.file_name if core.file_name else download.name
         out = self.folder / jar_name
@@ -754,7 +796,6 @@ class Installer:
         vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
         data = PaperCoreCache(files=[Path(jar_name)], build_number=build.id)
         return CoreCache(update_time=millis(), data=data, version_hash=vhash, type="paper")
-        
 
     def install_core(self):
         core = self.manifest.core
@@ -770,7 +811,7 @@ class Installer:
             raise ValueError("Unsupported core")
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
-    
+
     def download_asset(self, provider: AssetProvider, options: DownloadOptions):
         d_data: DownloadData
         if isinstance(provider, GithubReleasesProvider):
@@ -786,21 +827,25 @@ class Installer:
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
         return d_data
-    
+
     def install(self, asset: AssetManifest) -> tuple[AssetCache, bool]:
         provider = asset.provider
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
-        cached = self.cache.check_asset(asset_id, asset_hash) if asset.caching else None
+        cached = self.cache.check_asset(
+            asset_id, asset_hash) if asset.caching else None
         if cached:
-            self.logger.info(f"⏩ Skipping {asset.type.value} '{asset_id}' as it already installed")
+            self.logger.info(
+                f"⏩ Skipping {asset.type.value} '{asset_id}' as it already installed")
             return cached, True
-        
+
         self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
         asset_folder = asset.get_base_folder()
-        target_folder = asset_folder if asset_folder.is_absolute() else self.folder / asset_folder
+        target_folder = asset_folder if asset_folder.is_absolute() else self.folder / \
+            asset_folder
         selector = provider.create_file_selector(self.registries)
-        options = DownloadOptions(asset, asset.version, target_folder, selector)
+        options = DownloadOptions(
+            asset, asset.version, target_folder, selector)
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
         try:
@@ -809,8 +854,9 @@ class Installer:
             raise ValueError(f"Exception downloading asset {asset_id}") from e
         d_data.files = [p.relative_to(
             self.folder) if not p.is_absolute() else p for p in d_data.files]
-        
-        exprs = ExpressionProcessor(logging.getLogger("Expr#"+asset_id), self.folder)
+
+        exprs = ExpressionProcessor(
+            logging.getLogger("Expr#"+asset_id), self.folder)
         exprs.process(asset, d_data)
 
         cache = d_data.create_cache()
@@ -818,9 +864,10 @@ class Installer:
         if asset.caching:
             self.cache.store_asset(result)
         return result, False
-    
+
     def install_list(self, ls: Sequence[AssetManifest], entry_name: str):
-        if not ls: return
+        if not ls:
+            return
         total = len(ls)
         self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
         failed: list[AssetManifest] = []
@@ -830,7 +877,8 @@ class Installer:
             try:
                 _, is_cached = self.install(a)
             except Exception as e:
-                self.logger.error(f"Exception installing asset {key!r}", exc_info=e)
+                self.logger.error(
+                    f"Exception installing asset {key!r}", exc_info=e)
                 failed.append(a)
                 continue
             if is_cached:
@@ -838,29 +886,33 @@ class Installer:
             self.cache.save()
         cached_str = f" ({len(cached)} cached)" if cached else ""
         if failed:
-            self.logger.info(f"⚠  Installed {total-len(failed)}/{total}{cached_str} {entry_name}(s)")
+            self.logger.info(
+                f"⚠  Installed {total-len(failed)}/{total}{cached_str} {entry_name}(s)")
         else:
-            self.logger.info(f"✅ Installed {total}/{total}{cached_str} {entry_name}(s)")
-    
+            self.logger.info(
+                f"✅ Installed {total}/{total}{cached_str} {entry_name}(s)")
+
     def install_mods(self):
         self.install_list(self.manifest.mods, "mod")
-    
+
     def install_plugins(self):
         self.install_list(self.manifest.plugins, "plugin")
-    
+
     def install_datapacks(self):
         self.install_list(self.manifest.datapacks, "datapack")
-    
+
     def install_customs(self):
         self.install_list(self.manifest.customs, "custom asset")
 
 
 ROOT_REGISTRY = Registries()
-CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry("asset_cache", FilesCache)
+CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry(
+    "asset_cache", FilesCache)
 CACHES_REGISTRY.register_models(FilesCache, GithubReleaseCache,
                                 GithubActionsCache, ModrinthCache,
                                 PaperCoreCache, JenkinsCache)
-FILE_SELECTORS = ROOT_REGISTRY.create_model_registry("file_selectors", FileSelector)
+FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
+    "file_selectors", FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
 PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", AssetProvider)
@@ -880,7 +932,6 @@ LOG_FORMATTER = colorlog.ColoredFormatter(
 )
 
 
-
 def setup_logging(debug: bool):
     logger = logging.getLogger()  # Root logger
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -897,12 +948,15 @@ def setup_logging(debug: bool):
         logger.handlers.clear()
         logger.addHandler(console_handler)
 
-DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml", "manifest.yaml", "manifest.json5", "manifest.jsonc"]
+
+DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml",
+                          "manifest.yaml", "manifest.json5", "manifest.jsonc"]
 
 
 @click.group()
 def main():
     pass
+
 
 @main.command()
 @click.option(
@@ -942,7 +996,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
         else:
             click.echo("No manifest.json found or passed")
             return
-    
+
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY)
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY)
@@ -954,6 +1008,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     installer.install_datapacks()
     installer.install_customs()
     installer.shutdown()
+
 
 @main.command
 @click.option(
@@ -969,7 +1024,8 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
 )
 def schema(out: Path, pretty: bool):
     click.echo(f"Generating schema to {out}")
-    r = Manifest.model_json_schema(schema_generator=make_registry_schema_generator(ROOT_REGISTRY))
+    r = Manifest.model_json_schema(
+        schema_generator=make_registry_schema_generator(ROOT_REGISTRY))
     out.write_text(json.dumps(r, indent=2 if pretty else None))
     click.echo("Done")
 
