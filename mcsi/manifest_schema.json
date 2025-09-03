@@ -842,6 +842,11 @@
     }
   },
   "properties": {
+    "version": {
+      "default": "1.0.0",
+      "title": "Version",
+      "type": "string"
+    },
     "mc_version": {
       "title": "Mc Version",
       "type": "string"
