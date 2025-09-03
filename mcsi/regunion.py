@@ -3,6 +3,7 @@ from typing import Annotated, Any, Type
 from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
 from pydantic_core import core_schema
+from pydantic._internal._mock_val_ser import MockCoreSchema
 from registry import *
 
 
@@ -77,7 +78,6 @@ class RegistryUnion:
         ret = core_schema.with_info_after_validator_function(union_validator, 
                                                               core_schema.any_schema(),
                                                               ref=self.ref)
-        print(f"=== Ret core schema in {self.registry_key}", ret)
         return ret
 
     def __get_pydantic_json_schema__(self, schema: core_schema.CoreSchema, 
@@ -89,7 +89,7 @@ class RegistryUnion:
             registries = generate.get_registries()
         else:
             registries = None
-        assert isinstance(generate, GenerateJsonSchema)
+        # assert isinstance(generate, GenerateJsonSchema)
 
         # fallback
         if registries is None:
@@ -102,6 +102,11 @@ class RegistryUnion:
             raise ValueError(f"Unknown registry {self.registry_key}")
         tagged_choices: dict[str, core_schema.CoreSchema] = {}
         for key, model in registry.all().items():
+            sch = model.__pydantic_core_schema__
+            if isinstance(sch, MockCoreSchema):
+                model.model_rebuild()
+            if isinstance(sch, MockCoreSchema):
+                raise ValueError(f"model {model} schema is MockCoreSchema")
             # type: ignore
             tagged_choices[key] = model.__pydantic_core_schema__
 
@@ -111,8 +116,8 @@ class RegistryUnion:
             metadata=schema.get("metadata", {}) or {},
             ref=self.ref
         )
-        ret = generate.tagged_union_schema(ret_schema)
-        # ret = handler(ret_schema)
+        # ret = generate.tagged_union_schema(ret_schema)
+        ret = handler(ret_schema)
         return ret
 
 

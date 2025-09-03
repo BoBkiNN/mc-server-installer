@@ -61,6 +61,65 @@ FileSelectorKey: TypeAlias = Annotated[str, RegistryKey(
 FileSelectorUnion: TypeAlias = Annotated[FileSelector, RegistryUnion(
     "file_selectors"), Field(title="FileSelectorUnion")]
 
+
+class Expr(str):
+    """Expression that returns some result (serialized as str)."""
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler) -> core_schema.CoreSchema:
+        return core_schema.str_schema()
+
+    def __repr__(self) -> str:
+        return f"Expr({self})"
+
+
+class TemplateExpr(RootModel):
+    root: str
+    _parts: list[str | Expr] = []
+
+    def __str__(self) -> str:
+        return self.root
+
+    def parts(self, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
+        return utils.parse_template_parts(self.root, Expr, interpret_escapes)
+
+# if __name__ == "__main__":
+#     while True:
+#         i = input("Template: ")
+#         p = TemplateExpr(i).parts()
+#         print(p)
+#         for t in p:
+#          print(", ".join([str(ord(c)) for c in t]))
+
+
+class BaseAction(BaseModel):
+    name: str = ""
+    if_: Expr = Field("", alias="if")
+
+
+class DummyAction(BaseAction):
+    type: Literal["dummy"]
+    expr: Expr
+
+
+class RenameFile(BaseAction):
+    """Renames primary file"""
+    type: Literal["rename"]
+    to: TemplateExpr
+
+
+class UnzipFile(BaseAction):
+    """Unzips primary file. Supports .zip"""
+    type: Literal["unzip"]
+    folder: TemplateExpr = TemplateExpr("")
+    """Target folder. If not set, then folder where downloaded file is used"""
+
+
+Action = Annotated[
+    Union[DummyAction, RenameFile, UnzipFile],
+    Field(discriminator="type"),
+]
+
 class AssetProvider(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
     file_selector: FileSelectorKey | FileSelectorUnion = "all"
@@ -68,7 +127,7 @@ class AssetProvider(ABC, TypedModel):
     asset_id: str | None = None
     """Asset id override"""
     caching: bool = True
-    actions: list["Action"] = []
+    actions: list[Action] = []
     """List of actions to execute after download"""
     folder: Path | None = None
     """Used only in customs group""" # TODO replace this with Group(folder: id|Path)
@@ -189,59 +248,6 @@ class AssetType(Enum):
     PLUGIN = "plugin"
     DATAPACK = "datapack"
     CUSTOM = "custom"
-
-class Expr(str):
-    """Expression that returns some result (serialized as str)."""
-
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type: Any, handler) -> core_schema.CoreSchema:
-        return core_schema.str_schema()
-
-    def __repr__(self) -> str:
-        return f"Expr({self})"
-    
-
-class TemplateExpr(RootModel):
-    root: str
-    _parts: list[str | Expr] = []
-
-    def __str__(self) -> str:
-        return self.root
-
-    def parts(self, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
-        return utils.parse_template_parts(self.root, Expr, interpret_escapes)
-
-# if __name__ == "__main__":
-#     while True:
-#         i = input("Template: ")
-#         p = TemplateExpr(i).parts()
-#         print(p)
-#         for t in p:
-#          print(", ".join([str(ord(c)) for c in t]))
-
-class BaseAction(BaseModel):
-    name: str = ""
-    if_: Expr = Field("", alias="if")
-
-class DummyAction(BaseAction):
-    type: Literal["dummy"]
-    expr: Expr
-
-class RenameFile(BaseAction):
-    """Renames primary file"""
-    type: Literal["rename"]
-    to: TemplateExpr
-
-class UnzipFile(BaseAction):
-    """Unzips primary file. Supports .zip"""
-    type: Literal["unzip"]
-    folder: TemplateExpr = TemplateExpr("")
-    """Target folder. If not set, then folder where downloaded file is used"""
-
-Action = Annotated[
-    Union[DummyAction, RenameFile, UnzipFile],
-    Field(discriminator="type"),
-]
 
 class CoreManifest(BaseModel):
     file_name: str | None = None
