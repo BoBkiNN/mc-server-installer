@@ -17,7 +17,7 @@ from registry import *
 from regunion import RegistryUnion, RegistryKey
 import re
 
-class FileSelector(ABC, TypedModel):
+class FileSelector(ABC, TypedModel["FileSelector"]):
     model_config = ConfigDict(use_attribute_docstrings=True)
 
     @abstractmethod
