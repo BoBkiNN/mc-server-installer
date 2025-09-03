@@ -812,20 +812,20 @@ class Installer:
         self.cache.store_core(i)
 
     def download_asset(self, provider: AssetProvider, options: DownloadOptions):
-        d_data: DownloadData
+        data: DownloadData
         if isinstance(provider, GithubReleasesProvider):
-            d_data = self.assets.download_github_release(provider, options)
+            data = self.assets.download_github_release(provider, options)
         elif isinstance(provider, GithubActionsProvider):
-            d_data = self.assets.download_github_actions(provider, options)
+            data = self.assets.download_github_actions(provider, options)
         elif isinstance(provider, ModrinthProvider):
-            d_data = self.assets.download_modrinth(provider, options)
+            data = self.assets.download_modrinth(provider, options)
         elif isinstance(provider, DirectUrlProvider):
-            d_data = self.assets.download_direct_url(provider, options)
+            data = self.assets.download_direct_url(provider, options)
         elif isinstance(provider, JenkinsProvider):
-            d_data = self.assets.download_jenkins(provider, options)
+            data = self.assets.download_jenkins(provider, options)
         else:
             raise ValueError(f"Unsupported provider {type(provider)}")
-        return d_data
+        return data
 
     def install(self, asset: AssetManifest) -> tuple[AssetCache, bool]:
         provider = asset.provider
@@ -848,18 +848,18 @@ class Installer:
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
         try:
-            d_data = self.download_asset(provider, options)
+            data = self.download_asset(provider, options)
         except Exception as e:
             raise ValueError(f"Exception downloading asset {asset_id}") from e
-        d_data.files = [p.relative_to(
-            self.folder) if not p.is_absolute() else p for p in d_data.files]
+        data.files = [p.relative_to(
+            self.folder) if not p.is_absolute() else p for p in data.files]
 
         if asset.actions:
             exprs = ExpressionProcessor(
                 logging.getLogger("Expr#"+asset_id), self.folder)
-            exprs.process(asset, d_data)
+            exprs.process(asset, data)
 
-        cache = d_data.create_cache()
+        cache = data.create_cache()
         result = AssetCache.create(asset_id, asset_hash, millis(), cache)
         if asset.caching:
             self.cache.store_asset(result)
