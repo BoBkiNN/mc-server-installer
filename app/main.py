@@ -655,7 +655,6 @@ class Installer:
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
         self.cache = CacheStore(self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
         self.assets = AssetInstaller(self.manifest, auth, self.folder / "tmp", self.logger, self.session)
-        self.exprs = ExpressionProcessor(logging.getLogger("Expr"), self.folder)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
     
@@ -753,7 +752,8 @@ class Installer:
         d_data.files = [p.relative_to(
             self.folder) if not p.is_absolute() else p for p in d_data.files]
         
-        self.exprs.process(asset, d_data)
+        exprs = ExpressionProcessor(logging.getLogger("Expr#"+asset_id), self.folder)
+        exprs.process(asset, d_data)
 
         cache = d_data.create_cache()
         result = AssetCache.create(asset_id, asset_hash, millis(), cache)
