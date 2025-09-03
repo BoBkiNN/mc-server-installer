@@ -919,6 +919,9 @@ def main():
     pass
 
 
+# Install lifecycle:
+# Check cache -> download files -> do actions -> store cache
+
 @main.command()
 @click.option(
     "--manifest",
@@ -970,6 +973,8 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     installer.install_customs()
     installer.shutdown()
 
+# Update lifecycle:
+# Check cache -> check update -> if (new update) {invalidate cache -> download files -> do actions} -> store cache
 
 @main.command
 @click.option(
