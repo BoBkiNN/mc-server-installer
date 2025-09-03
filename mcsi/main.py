@@ -414,6 +414,25 @@ class ExpressionProcessor:
                 self.logger.error(
                     f"Failed to handle action {type(a)} at {key}", exc_info=e)
 
+class UpdateStatus(Enum):
+    UP_TO_DATE = False
+    AHEAD = False
+    OUTDATED = True
+
+PT = TypeVar("PT", bound=AssetProvider)
+CT = TypeVar("CT", bound=FilesCache)
+DT = TypeVar("DT", bound=DownloadData)
+
+class AssetDownloader(ABC, Generic[PT, CT, DT]):
+    @abstractmethod
+    def download(self, assets: "AssetInstaller", asset: AssetManifest,
+                 provider: PT, options: DownloadOptions) -> DT:
+        ...
+
+    @abstractmethod
+    def has_update(self, assets: "AssetInstaller", asset: AssetManifest,
+                   provider: PT, options: DownloadOptions, cached: CT) -> UpdateStatus:
+        ...
 
 class AssetInstaller:
     def __init__(self, manifest: Manifest, auth: Authorizaition, temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
