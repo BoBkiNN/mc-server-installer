@@ -25,7 +25,6 @@ from github.Repository import Repository
 from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
 from model import *
-from model import FilesCache
 from regunion import make_registry_schema_generator
 
 
