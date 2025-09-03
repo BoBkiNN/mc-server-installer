@@ -28,33 +28,7 @@
     "CustomManifest": {
       "properties": {
         "provider": {
-          "discriminator": {
-            "mapping": {
-              "github": "#/$defs/GithubReleasesProvider",
-              "github-actions": "#/$defs/GithubActionsProvider",
-              "jenkins": "#/$defs/JenkinsProvider",
-              "modrinth": "#/$defs/ModrinthProvider",
-              "url": "#/$defs/DirectUrlProvider"
-            },
-            "propertyName": "type"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/ModrinthProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubReleasesProvider"
-            },
-            {
-              "$ref": "#/$defs/DirectUrlProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubActionsProvider"
-            },
-            {
-              "$ref": "#/$defs/JenkinsProvider"
-            }
-          ],
+          "$ref": "#/$defs/RegistryUnion__providers",
           "title": "Provider"
         },
         "asset_id": {
@@ -130,33 +104,7 @@
     "DatapackManifest": {
       "properties": {
         "provider": {
-          "discriminator": {
-            "mapping": {
-              "github": "#/$defs/GithubReleasesProvider",
-              "github-actions": "#/$defs/GithubActionsProvider",
-              "jenkins": "#/$defs/JenkinsProvider",
-              "modrinth": "#/$defs/ModrinthProvider",
-              "url": "#/$defs/DirectUrlProvider"
-            },
-            "propertyName": "type"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/ModrinthProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubReleasesProvider"
-            },
-            {
-              "$ref": "#/$defs/DirectUrlProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubActionsProvider"
-            },
-            {
-              "$ref": "#/$defs/JenkinsProvider"
-            }
-          ],
+          "$ref": "#/$defs/RegistryUnion__providers",
           "title": "Provider"
         },
         "asset_id": {
@@ -440,33 +388,7 @@
     "ModManifest": {
       "properties": {
         "provider": {
-          "discriminator": {
-            "mapping": {
-              "github": "#/$defs/GithubReleasesProvider",
-              "github-actions": "#/$defs/GithubActionsProvider",
-              "jenkins": "#/$defs/JenkinsProvider",
-              "modrinth": "#/$defs/ModrinthProvider",
-              "url": "#/$defs/DirectUrlProvider"
-            },
-            "propertyName": "type"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/ModrinthProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubReleasesProvider"
-            },
-            {
-              "$ref": "#/$defs/DirectUrlProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubActionsProvider"
-            },
-            {
-              "$ref": "#/$defs/JenkinsProvider"
-            }
-          ],
+          "$ref": "#/$defs/RegistryUnion__providers",
           "title": "Provider"
         },
         "asset_id": {
@@ -659,33 +581,7 @@
     "PluginManifest": {
       "properties": {
         "provider": {
-          "discriminator": {
-            "mapping": {
-              "github": "#/$defs/GithubReleasesProvider",
-              "github-actions": "#/$defs/GithubActionsProvider",
-              "jenkins": "#/$defs/JenkinsProvider",
-              "modrinth": "#/$defs/ModrinthProvider",
-              "url": "#/$defs/DirectUrlProvider"
-            },
-            "propertyName": "type"
-          },
-          "oneOf": [
-            {
-              "$ref": "#/$defs/ModrinthProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubReleasesProvider"
-            },
-            {
-              "$ref": "#/$defs/DirectUrlProvider"
-            },
-            {
-              "$ref": "#/$defs/GithubActionsProvider"
-            },
-            {
-              "$ref": "#/$defs/JenkinsProvider"
-            }
-          ],
+          "$ref": "#/$defs/RegistryUnion__providers",
           "title": "Provider"
         },
         "asset_id": {
@@ -792,8 +688,8 @@
     },
     "RegistryKey__file_selectors": {
       "enum": [
-        "pattern",
         "all",
+        "pattern",
         "simple-jar"
       ],
       "type": "string"
@@ -816,6 +712,35 @@
         },
         {
           "$ref": "#/$defs/RegexFileSelector"
+        }
+      ]
+    },
+    "RegistryUnion__providers": {
+      "discriminator": {
+        "mapping": {
+          "github": "#/$defs/GithubReleasesProvider",
+          "github-actions": "#/$defs/GithubActionsProvider",
+          "jenkins": "#/$defs/JenkinsProvider",
+          "modrinth": "#/$defs/ModrinthProvider",
+          "url": "#/$defs/DirectUrlProvider"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ModrinthProvider"
+        },
+        {
+          "$ref": "#/$defs/GithubReleasesProvider"
+        },
+        {
+          "$ref": "#/$defs/DirectUrlProvider"
+        },
+        {
+          "$ref": "#/$defs/GithubActionsProvider"
+        },
+        {
+          "$ref": "#/$defs/JenkinsProvider"
         }
       ]
     },

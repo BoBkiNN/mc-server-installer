@@ -3,7 +3,7 @@ import json
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Literal, Union, TypeAlias
+from typing import Annotated, Literal, Union, TypeAlias, ClassVar
 from dataclasses import dataclass
 
 import json5
@@ -58,11 +58,11 @@ FileSelectorKey: TypeAlias = Annotated[str, RegistryKey(
 FileSelectorUnion: TypeAlias = Annotated[FileSelector, RegistryUnion(
     "file_selectors"), Field(title="FileSelectorUnion")]
 
-class AssetProvider(BaseModel):
+class AssetProvider(TypedModel["AssetProvider"]):
     # TODO fallback providers
     file_selector: FileSelectorKey | FileSelectorUnion = "all"
     """Selector used to choose files from multiple"""
-
+    
     class Config:
         frozen = True
         use_attribute_docstrings = True
@@ -151,15 +151,6 @@ class AssetType(Enum):
     PLUGIN = "plugin"
     DATAPACK = "datapack"
     CUSTOM = "custom"
-
-
-Provider = Annotated[
-    Union[ModrinthProvider, GithubReleasesProvider,
-          DirectUrlProvider, GithubActionsProvider,
-          JenkinsProvider],
-    Field(discriminator="type"),
-]
-
 
 class Expr(str):
     """Expression that returns some result (serialized as str)."""
@@ -290,9 +281,12 @@ Action = Annotated[
     Field(discriminator="type"),
 ]
 
+ProviderUnion: TypeAlias = Annotated[AssetProvider, RegistryUnion(
+    "providers"), Field(title="Provider")]
+
 class AssetManifest(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
-    provider: Provider
+    provider: ProviderUnion
     asset_id: str | None = None
     """Asset id override"""
     version: str
@@ -317,7 +311,7 @@ class AssetManifest(BaseModel):
         return v
 
     def create_asset_id(self) -> str:
-        return f"({self.provider.create_asset_id()})@{self.provider.type}"
+        return f"({self.provider.create_asset_id()})@{self.provider.get_type()}"
 
     @property
     def type(self) -> AssetType:

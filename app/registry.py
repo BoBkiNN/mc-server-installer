@@ -2,6 +2,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 from pydantic import BaseModel, ValidationError, ValidationInfo
 from pydantic_core import InitErrorDetails
+from typing import get_args, Literal
 
 REGISTRIES_CONTEXT_KEY = "registries"
 
@@ -44,6 +45,21 @@ class Registry(Generic[T]):
 M = TypeVar("M", bound=BaseModel)
 
 
+class TypedModel(BaseModel, Generic[T]):
+    @classmethod
+    def get_type(cls) -> str:
+        if cls == T:
+            raise TypeError("Abstract class does not have type")
+        ann = cls.model_fields["type"].annotation
+        if getattr(ann, "__origin__", None) is Literal:
+            args = get_args(ann)
+            if len(args) == 1 and isinstance(args[0], str):
+                return args[0]
+            raise TypeError(
+                f"{cls.__name__}.type must be Literal with one string")
+        raise TypeError(f"{cls.__name__}.type must be Literal")
+
+
 class ModelRegistry(Generic[M], Registry[type[M]]):
     def __init__(self, t: type[M]):
         super().__init__(t)  # type: ignore
@@ -59,10 +75,22 @@ class ModelRegistry(Generic[M], Registry[type[M]]):
         if not field:
             raise ValueError(
                 f"Missing discriminator {discriminator!r} in model {t}")
-        key = field.default
+        ann = getattr(field.annotation, "__origin__", None)
+        if ann is Literal:
+            literal_args = get_args(field.annotation)
+            if len(literal_args) == 1:
+                key = literal_args[0]
+            else:
+                raise ValueError(f"Discriminator {discriminator!r} in model {t} must be a Literal with a single value")
+        else:
+            key = field.default
         if not key:
-            raise ValueError(f"No default value for {discriminator!r} in model provided to use as key")
+            raise ValueError(f"No default value or Literal for {discriminator!r} provided to use as key")
         self.register(str(key), t)
+    
+    def register_models(self, *args: type[M], discriminator: str = "type"):
+        for m in args:
+            self.register_model(m, discriminator)
 
 
 class Registries(Registry[Registry]):

@@ -169,9 +169,9 @@ class DownloadOptions:
     folder: Path
     selector: FileSelector
 
-    def require_version(self, provider: Provider):
+    def require_version(self, provider: AssetProvider):
         if self.version is None:
-            raise ValueError(f"provider {provider.type} requires version to be specified in manifest")
+            raise ValueError(f"provider {provider.get_type()} requires version to be specified in manifest")
         return self.version
 
 # Probably shit class
@@ -771,7 +771,7 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
     
-    def download_asset(self, provider: Provider, options: DownloadOptions):
+    def download_asset(self, provider: AssetProvider, options: DownloadOptions):
         d_data: DownloadData
         if isinstance(provider, GithubReleasesProvider):
             d_data = self.assets.download_github_release(provider, options)
@@ -867,6 +867,10 @@ FILE_SELECTORS = ROOT_REGISTRY.create_model_registry("file_selectors", FileSelec
 FILE_SELECTORS.register_model(AllFilesSelector)
 FILE_SELECTORS.register_model(SimpleJarSelector)
 FILE_SELECTORS.register_model(RegexFileSelector)
+PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", AssetProvider)
+PROVIDERS.register_models(ModrinthProvider, GithubReleasesProvider,
+                          DirectUrlProvider, GithubActionsProvider,
+                          JenkinsProvider)
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
