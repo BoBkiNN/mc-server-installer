@@ -680,6 +680,101 @@
       "title": "ModrinthAsset",
       "type": "object"
     },
+    "NoteAsset": {
+      "description": "Asset that must manually be installed.<br>\nLogs a message after installation containing note",
+      "properties": {
+        "file_selector": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistryKey__file_selectors"
+            },
+            {
+              "$ref": "#/$defs/RegistryUnion__file_selectors"
+            }
+          ],
+          "default": "all",
+          "description": "Selector used to choose files from multiple",
+          "title": "File Selector"
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Asset id override",
+          "title": "Asset Id"
+        },
+        "caching": {
+          "default": true,
+          "title": "Caching",
+          "type": "boolean"
+        },
+        "actions": {
+          "default": [],
+          "description": "List of actions to execute after download",
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "dummy": "#/$defs/DummyAction",
+                "rename": "#/$defs/RenameFile",
+                "unzip": "#/$defs/UnzipFile"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DummyAction"
+              },
+              {
+                "$ref": "#/$defs/RenameFile"
+              },
+              {
+                "$ref": "#/$defs/UnzipFile"
+              }
+            ]
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "folder": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Used only in customs group",
+          "title": "Folder"
+        },
+        "type": {
+          "const": "note",
+          "enum": [
+            "note"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "note"
+      ],
+      "title": "NoteAsset",
+      "type": "object"
+    },
     "PaperCoreManifest": {
       "properties": {
         "file_name": {
@@ -797,6 +892,7 @@
           "github-actions": "#/$defs/GithubActionsAsset",
           "jenkins": "#/$defs/JenkinsAsset",
           "modrinth": "#/$defs/ModrinthAsset",
+          "note": "#/$defs/NoteAsset",
           "url": "#/$defs/DirectUrlAsset"
         },
         "propertyName": "type"
@@ -816,6 +912,9 @@
         },
         {
           "$ref": "#/$defs/JenkinsAsset"
+        },
+        {
+          "$ref": "#/$defs/NoteAsset"
         }
       ]
     },

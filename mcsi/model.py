@@ -243,6 +243,15 @@ class JenkinsAsset(Asset):
         host = self.url.host or "Unknown"
         return f"{self.job}@{host}"
 
+class NoteAsset(Asset):
+    """Asset that must manually be installed.<br>
+    Logs a message after installation containing note"""
+    type: Literal["note"]
+    note: str
+
+    def create_asset_id(self) -> str:
+        hash = hashlib.sha256(self.note.encode("utf-8")).hexdigest()
+        return f"note-{hash[:7]}"
 
 class CoreManifest(BaseModel):
     file_name: str | None = None

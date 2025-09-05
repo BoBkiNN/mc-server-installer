@@ -778,6 +778,9 @@ class Installer:
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
 
+        self.install_notes: dict[str, str] = {}
+        """Dict of asset id to note. Printed at installation finish"""
+
     def prepare(self):
         self.cache.load(self.registries)
         self.cache.check_all_assets(self.manifest)
@@ -898,6 +901,10 @@ class Installer:
         cached: list[Asset] = []
         for a in ls:
             key = a.resolve_asset_id()
+            if isinstance(a, NoteAsset):
+                self.install_notes[key] = a.note
+                self.logger.info(f"🚩 {entry_name.capitalize()} {key} requires manual installation. See reason at end of installation")
+                continue
             try:
                 _, is_cached = self.install(a, group)
             except Exception as e:
@@ -927,6 +934,15 @@ class Installer:
 
     def install_customs(self):
         self.install_list(self.manifest.customs, CustomsGroup())
+    
+    def show_notes(self):
+        if not self.install_notes:
+            return
+        d = self.install_notes
+        self.logger.info(f"🚩 You have {len(d)} note(s) from assets thats need to be downloaded manually")
+        self.logger.info("🚩 You can ignore this messages if you installed them.")
+        for i, v in enumerate(d.values()):
+            self.logger.info(f"🚩 {i+1}: {v}")
 
 
 ROOT_REGISTRY = Registries()
@@ -942,7 +958,7 @@ FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
 ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
 ASSETS.register_models(ModrinthAsset, GithubReleasesAsset,
                           DirectUrlAsset, GithubActionsAsset,
-                          JenkinsAsset)
+                          JenkinsAsset, NoteAsset)
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
@@ -1035,6 +1051,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     installer.install_plugins()
     installer.install_datapacks()
     installer.install_customs()
+    installer.show_notes()
     installer.shutdown()
 
 # Update lifecycle:
