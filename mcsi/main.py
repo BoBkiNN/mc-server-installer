@@ -778,7 +778,7 @@ class Installer:
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
 
-        self.install_notes: dict[str, str] = {}
+        self.install_notes: dict[str, tuple[str, AssetsGroup]] = {}
         """Dict of asset id to note. Printed at installation finish"""
 
     def prepare(self):
@@ -902,7 +902,7 @@ class Installer:
         for a in ls:
             key = a.resolve_asset_id()
             if isinstance(a, NoteAsset):
-                self.install_notes[key] = a.note
+                self.install_notes[key] = a.note, group
                 self.logger.info(f"🚩 {entry_name.capitalize()} {key} requires manual installation. See reason at end of installation")
                 continue
             try:
@@ -941,8 +941,9 @@ class Installer:
         d = self.install_notes
         self.logger.info(f"🚩 You have {len(d)} note(s) from assets thats need to be downloaded manually")
         self.logger.info("🚩 You can ignore this messages if you installed them.")
-        for i, v in enumerate(d.values()):
-            self.logger.info(f"🚩 {i+1}: {v}")
+        for (v, g) in d.values():
+            entry_name = g.unit_name
+            self.logger.info(f"🚩 {entry_name.capitalize()}: {v}")
 
 
 ROOT_REGISTRY = Registries()
