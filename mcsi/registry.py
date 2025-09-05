@@ -47,6 +47,7 @@ M = TypeVar("M", bound=BaseModel)
 
 
 class TypedModel(BaseModel):
+    # TODO cache type
 
     @classmethod
     def get_type(cls) -> str:
