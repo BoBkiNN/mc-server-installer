@@ -61,16 +61,95 @@ FileSelectorKey: TypeAlias = Annotated[str, RegistryKey(
 FileSelectorUnion: TypeAlias = Annotated[FileSelector, RegistryUnion(
     "file_selectors"), Field(title="FileSelectorUnion")]
 
-class AssetProvider(ABC, TypedModel):
-    # TODO fallback providers
+
+class Expr(str):
+    """Expression that returns some result (serialized as str)."""
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler) -> core_schema.CoreSchema:
+        return core_schema.str_schema()
+
+    def __repr__(self) -> str:
+        return f"Expr({self})"
+
+
+class TemplateExpr(RootModel):
+    root: str
+    _parts: list[str | Expr] = []
+
+    def __str__(self) -> str:
+        return self.root
+
+    def parts(self, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
+        return utils.parse_template_parts(self.root, Expr, interpret_escapes)
+
+# if __name__ == "__main__":
+#     while True:
+#         i = input("Template: ")
+#         p = TemplateExpr(i).parts()
+#         print(p)
+#         for t in p:
+#          print(", ".join([str(ord(c)) for c in t]))
+
+
+class BaseAction(BaseModel):
+    name: str = ""
+    if_: Expr = Field("", alias="if")
+
+
+class DummyAction(BaseAction):
+    type: Literal["dummy"]
+    expr: Expr
+
+
+class RenameFile(BaseAction):
+    """Renames primary file"""
+    type: Literal["rename"]
+    to: TemplateExpr
+
+
+class UnzipFile(BaseAction):
+    """Unzips primary file. Supports .zip"""
+    type: Literal["unzip"]
+    folder: TemplateExpr = TemplateExpr("")
+    """Target folder. If not set, then folder where downloaded file is used"""
+
+
+Action = Annotated[
+    Union[DummyAction, RenameFile, UnzipFile],
+    Field(discriminator="type"),
+]
+
+class Asset(ABC, TypedModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
     file_selector: FileSelectorKey | FileSelectorUnion = "all"
     """Selector used to choose files from multiple"""
-    _file_selector: FileSelector | None = None
-    
-    class Config:
-        frozen = True
-        use_attribute_docstrings = True
+    asset_id: str | None = None
+    """Asset id override"""
+    caching: bool = True
+    actions: list[Action] = []
+    """List of actions to execute after download"""
+    folder: Path | None = None
+    """Used only in customs group""" # TODO replace this with Group(folder: id|Path)
 
+    _asset_id: str | None = None  # cache
+    _file_selector: FileSelector | None = None # cache
+
+    def stable_hash(self) -> str:
+        s = self.model_dump_json()
+        return hashlib.sha256(s.encode()).hexdigest()
+
+    def resolve_asset_id(self) -> str:
+        if self._asset_id:
+            return self._asset_id
+        if self.asset_id:
+            v = self.asset_id
+        else:
+            v = self.create_asset_id()
+        self._asset_id = v
+        return v
+
+    @abstractmethod
     def create_asset_id(self) -> str:
         """Returns asset id without versions. Do not invokes any IO"""
         ...
@@ -96,9 +175,12 @@ class AssetProvider(ABC, TypedModel):
             return self.file_selector
 
 
+LatestOrStr: TypeAlias = Literal["latest"] | str
 
-class ModrinthProvider(AssetProvider):
+
+class ModrinthAsset(Asset):
     """Downloads asset from modrinth"""
+    version: LatestOrStr
     project_id: str
     channel: VersionType | None = None
     """If not set, then channel is ignored"""
@@ -113,8 +195,9 @@ class ModrinthProvider(AssetProvider):
         return self.project_id
 
 
-class GithubReleasesProvider(AssetProvider):
+class GithubReleasesAsset(Asset):
     """Downloads asset from github"""
+    version: LatestOrStr
     repository: str
     type: Literal["github"]
     file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
@@ -123,8 +206,9 @@ class GithubReleasesProvider(AssetProvider):
         return self.repository
 
 
-class GithubActionsProvider(AssetProvider):
+class GithubActionsAsset(Asset):
     """Downloads artifact from github actions"""
+    version: LatestOrStr
     repository: str
     branch: str = "master"
     workflow: str
@@ -137,7 +221,7 @@ class GithubActionsProvider(AssetProvider):
         return self.repository+"/"+self.workflow+"@"+self.branch
 
 
-class DirectUrlProvider(AssetProvider):
+class DirectUrlAsset(Asset):
     """Downloads asset from specified url"""
     url: HttpUrl
     file_name: str | None = None
@@ -146,7 +230,8 @@ class DirectUrlProvider(AssetProvider):
     def create_asset_id(self) -> str:
         return str(self.url)
 
-class JenkinsProvider(AssetProvider):
+class JenkinsAsset(Asset):
+    version: Literal["latest"] | int
     url: HttpUrl
     """URL to Jenkins instance"""
     job: str
@@ -158,151 +243,15 @@ class JenkinsProvider(AssetProvider):
         host = self.url.host or "Unknown"
         return f"{self.job}@{host}"
 
-class AssetType(Enum):
-    MOD = "mod"
-    PLUGIN = "plugin"
-    DATAPACK = "datapack"
-    CUSTOM = "custom"
-
-class Expr(str):
-    """Expression that returns some result (serialized as str)."""
-
-    @classmethod
-    def __get_pydantic_core_schema__(cls, source_type: Any, handler) -> core_schema.CoreSchema:
-        return core_schema.str_schema()
-
-    def __repr__(self) -> str:
-        return f"Expr({self})"
-    
-
-class TemplateExpr(RootModel):
-    root: str
-    _parts: list[str | Expr] = []
-
-    def __str__(self) -> str:
-        return self.root
-
-    def parts(self, interpret_escapes: bool = True) -> list[Union[str, Expr]]:
-        return utils.parse_template_parts(self.root, Expr, interpret_escapes)
-
-# if __name__ == "__main__":
-#     while True:
-#         i = input("Template: ")
-#         p = TemplateExpr(i).parts()
-#         print(p)
-#         for t in p:
-#          print(", ".join([str(ord(c)) for c in t]))
-
-class BaseAction(BaseModel):
-    name: str = ""
-    if_: Expr = Field("", alias="if")
-
-class DummyAction(BaseAction):
-    type: Literal["dummy"]
-    expr: Expr
-
-class RenameFile(BaseAction):
-    """Renames primary file"""
-    type: Literal["rename"]
-    to: TemplateExpr
-
-class UnzipFile(BaseAction):
-    """Unzips primary file. Supports .zip"""
-    type: Literal["unzip"]
-    folder: TemplateExpr = TemplateExpr("")
-    """Target folder. If not set, then folder where downloaded file is used"""
-
-Action = Annotated[
-    Union[DummyAction, RenameFile, UnzipFile],
-    Field(discriminator="type"),
-]
-
-ProviderUnion: TypeAlias = Annotated[AssetProvider, RegistryUnion(
-    "providers"), Field(title="Provider")]
-
-class AssetManifest(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
-    provider: ProviderUnion
-    asset_id: str | None = None
-    """Asset id override"""
-    version: str
-    caching: bool = True
-    actions: list[Action] = []
-    """List of actions to execute after download"""
-
-    _asset_id: str | None = None  # cache
-
-    def stable_hash(self) -> str:
-        s = self.model_dump_json()
-        return hashlib.sha256(s.encode()).hexdigest()
-
-    def resolve_asset_id(self) -> str:
-        if self._asset_id:
-            return self._asset_id
-        if self.asset_id:
-            v = self.asset_id
-        else:
-            v = self.create_asset_id()
-        self._asset_id = v
-        return v
+class NoteAsset(Asset):
+    """Asset that must manually be installed.<br>
+    Logs a message after installation containing note"""
+    type: Literal["note"]
+    note: str
 
     def create_asset_id(self) -> str:
-        return f"({self.provider.create_asset_id()})@{self.provider.get_type()}"
-
-    @property
-    def type(self) -> AssetType:
-        return getattr(self, "_type")
-
-    def get_base_folder(self) -> Path:
-        ...
-    
-    def get_manifest_group(self) -> str:
-        ...
-
-
-class ModManifest(AssetManifest):
-    _type = AssetType.MOD
-
-    def get_base_folder(self) -> Path:
-        return Path("mods")
-    
-    def get_manifest_group(self) -> str:
-        return "mods"
-
-
-class PluginManifest(AssetManifest):
-    _type = AssetType.PLUGIN
-
-    def get_base_folder(self) -> Path:
-        return Path("plugins")
-    
-    def get_manifest_group(self) -> str:
-        return "plugins"
-
-
-class DatapackManifest(AssetManifest):
-    _type = AssetType.DATAPACK
-
-    def get_base_folder(self) -> Path:
-        return Path("world") / "datapacks"
-    
-    def get_manifest_group(self) -> str:
-        return "datapacks"
-
-
-class CustomManifest(AssetManifest):
-    _type = AssetType.CUSTOM
-    asset_id: str | None = Field(...)  # type: ignore
-    folder: Path
-    """File name to use. Generated by provider if not set"""
-    version: str | None = None  # type: ignore
-
-    def get_base_folder(self) -> Path:
-        return self.folder
-    
-    def get_manifest_group(self) -> str:
-        return "customs"
-
+        hash = hashlib.sha256(self.note.encode("utf-8")).hexdigest()
+        return f"note-{hash[:7]}"
 
 class CoreManifest(BaseModel):
     file_name: str | None = None
@@ -344,16 +293,20 @@ Core = Annotated[
     Field(discriminator="type"),
 ]
 
+AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(
+    "assets"), Field(title="Asset")]
+
+# ProviderUnion: TypeAlias = Annotated[Union[ModrinthProvider, GithubReleasesProvider], Field(title="Provider", discriminator="type")]
 
 class Manifest(BaseModel):
     version: str = __version__
     mc_version: str
     core: Core
 
-    mods: list[ModManifest] = []
-    plugins: list[PluginManifest] = []
-    datapacks: list[DatapackManifest] = []
-    customs: list[CustomManifest] = []
+    mods: list[AssetUnion] = []
+    plugins: list[AssetUnion] = []
+    datapacks: list[AssetUnion] = []
+    customs: list[AssetUnion] = []
 
     class Config:
         frozen = True

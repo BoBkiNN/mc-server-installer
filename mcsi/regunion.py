@@ -1,8 +1,9 @@
 from typing import Annotated, Any, Type
 
-from pydantic import BaseModel
+from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
 from pydantic_core import core_schema
+from pydantic._internal._mock_val_ser import MockCoreSchema
 from registry import *
 
 
@@ -44,7 +45,8 @@ class RegistryUnion:
         self.discriminator = discriminator
         self.ref = f"RegistryUnion__{registry_key}" if add_ref else None
 
-    def __get_pydantic_core_schema__(self, source: Type[Any], handler
+    def __get_pydantic_core_schema__(self, source: Type[Any], 
+                                     handler: GetCoreSchemaHandler
                                      ) -> core_schema.CoreSchema:
         def union_validator(value, info: core_schema.ValidationInfo):
             if isinstance(value, BaseModel):
@@ -72,11 +74,14 @@ class RegistryUnion:
                             self.discriminator,), input=key, ctx={"expected": str(keys)})
                     ])
             return model.model_validate(value, context=info.context)
-        return core_schema.with_info_after_validator_function(union_validator, 
+        
+        ret = core_schema.with_info_after_validator_function(union_validator, 
                                                               core_schema.any_schema(),
                                                               ref=self.ref)
+        return ret
 
-    def __get_pydantic_json_schema__(self, schema: core_schema.CoreSchema, handler
+    def __get_pydantic_json_schema__(self, schema: core_schema.CoreSchema, 
+                                     handler: GetJsonSchemaHandler
                                      ) -> JsonSchemaValue:
         generate = getattr(handler, "generate_json_schema")
         registries: Registries | None
@@ -84,6 +89,7 @@ class RegistryUnion:
             registries = generate.get_registries()
         else:
             registries = None
+        # assert isinstance(generate, GenerateJsonSchema)
 
         # fallback
         if registries is None:
@@ -96,16 +102,23 @@ class RegistryUnion:
             raise ValueError(f"Unknown registry {self.registry_key}")
         tagged_choices: dict[str, core_schema.CoreSchema] = {}
         for key, model in registry.all().items():
+            if isinstance(model.__pydantic_core_schema__, MockCoreSchema):
+                model.model_rebuild(force=True)
+            if isinstance(model.__pydantic_core_schema__, MockCoreSchema):
+                raise ValueError(f"model {model} schema is MockCoreSchema! Seems like there are some delayed types like list[\"Type\"]: \
+                                 {model.__pydantic_core_schema__._error_message}")
             # type: ignore
             tagged_choices[key] = model.__pydantic_core_schema__
 
         ret_schema = core_schema.tagged_union_schema(
             tagged_choices,
             self.discriminator,
-            metadata=schema.get("metadata", None),
+            metadata=schema.get("metadata", {}) or {},
             ref=self.ref
         )
-        return handler(ret_schema)
+        # ret = generate.tagged_union_schema(ret_schema)
+        ret = handler(ret_schema)
+        return ret
 
 
 class RegistryKey:

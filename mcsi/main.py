@@ -12,6 +12,7 @@ import click
 import colorlog
 import jenkins
 import jenkins_models as jm
+from model import Asset, Path
 import modrinth
 import papermc_fill as papermc
 import requests
@@ -95,8 +96,8 @@ class CacheStore:
                 "This might mean that all cached data is invalid in current new location, so resetting")
             self.reset()
 
-    def invalidate_asset(self, asset: str | AssetManifest, reason: InvalidReason | None = None):
-        id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
+    def invalidate_asset(self, asset: str | Asset, reason: InvalidReason | None = None):
+        id = asset.resolve_asset_id() if isinstance(asset, Asset) else asset
         removed = self.cache.assets.pop(id, None)
         if removed:
             for p in removed.data.files:
@@ -109,9 +110,9 @@ class CacheStore:
             self.logger.info(msg)
             self.dirty = True
 
-    def check_asset(self, asset: str | AssetManifest, hash: str | None):
+    def check_asset(self, asset: str | Asset, hash: str | None):
         """Returns None if cache is invalid"""
-        id = asset.resolve_asset_id() if isinstance(asset, AssetManifest) else asset
+        id = asset.resolve_asset_id() if isinstance(asset, Asset) else asset
         entry = self.cache.assets.get(id, None)
         if not entry:
             return None
@@ -176,21 +177,7 @@ class Authorizaition(BaseModel):
     github: str | None = None
 
 
-@dataclass
-class DownloadOptions:
-    asset: AssetManifest
-    version: str | None
-    folder: Path
-
-    def require_version(self, provider: AssetProvider):
-        if self.version is None:
-            raise ValueError(
-                f"provider {provider.get_type()} requires version to be specified in manifest")
-        return self.version
-
 # Probably shit class
-
-
 @dataclass(kw_only=True)
 class DownloadData:
     files: list[Path]
@@ -397,7 +384,7 @@ class ExpressionProcessor:
         else:
             raise ValueError(f"Unknown action {type(action)}")
 
-    def process(self, asset: AssetManifest, data: DownloadData):
+    def process(self, asset: Asset, group: "AssetsGroup", data: DownloadData):
         ls = asset.actions
         if not ls:
             return data
@@ -407,7 +394,7 @@ class ExpressionProcessor:
         self.intpr.symtable["a"] = asset
         for n in ["data", "d", "asset", "a"]:
             self.intpr.readonly_symbols.add(n)
-        ak = asset.get_manifest_group()+"."+asset.resolve_asset_id()
+        ak = group.get_manifest_name()+"."+asset.resolve_asset_id()
         for i, a in enumerate(ls):
             key = f"{ak}.actions[{i}]"
             try:
@@ -421,20 +408,81 @@ class UpdateStatus(Enum):
     AHEAD = False
     OUTDATED = True
 
-PT = TypeVar("PT", bound=AssetProvider)
-CT = TypeVar("CT", bound=FilesCache)
-DT = TypeVar("DT", bound=DownloadData)
+# PT = TypeVar("PT", bound=AssetProvider)
+# CT = TypeVar("CT", bound=FilesCache)
+# DT = TypeVar("DT", bound=DownloadData)
 
-class AssetDownloader(ABC, Generic[PT, CT, DT]):
+# class AssetDownloader(ABC, Generic[PT, CT, DT]):
+#     @abstractmethod
+#     def download(self, assets: "AssetInstaller", asset: AssetManifest,
+#                  provider: PT, options: DownloadOptions) -> DT:
+#         ...
+
+#     @abstractmethod
+#     def has_update(self, assets: "AssetInstaller", asset: AssetManifest,
+#                    provider: PT, options: DownloadOptions, cached: CT) -> UpdateStatus:
+#         ...
+
+class AssetsGroup(ABC):
     @abstractmethod
-    def download(self, assets: "AssetInstaller", asset: AssetManifest,
-                 provider: PT, options: DownloadOptions) -> DT:
+    def get_folder(self, asset: Asset) -> Path:
+        ...
+    
+    @abstractmethod
+    def get_manifest_name(self) -> str:
+        ...
+    
+    @property
+    @abstractmethod
+    def unit_name(self) -> str:
         ...
 
-    @abstractmethod
-    def has_update(self, assets: "AssetInstaller", asset: AssetManifest,
-                   provider: PT, options: DownloadOptions, cached: CT) -> UpdateStatus:
-        ...
+class PluginsGroup(AssetsGroup):
+    def get_folder(self, asset: Asset) -> Path:
+        return Path("plugins")
+    
+    def get_manifest_name(self) -> str:
+        return "plugins"
+    
+    @property
+    def unit_name(self) -> str:
+        return "plugin"
+
+class ModsGroup(AssetsGroup):
+    def get_folder(self, asset: Asset) -> Path:
+        return Path("mods")
+    
+    def get_manifest_name(self) -> str:
+        return "mods"
+    
+    @property
+    def unit_name(self) -> str:
+        return "mod"
+
+
+class DatapacksGroup(AssetsGroup):
+    def get_folder(self, asset: Asset) -> Path:
+        return Path("world") / "datapacks"
+
+    def get_manifest_name(self) -> str:
+        return "datapacks"
+
+    @property
+    def unit_name(self) -> str:
+        return "datapack"
+
+class CustomsGroup(AssetsGroup):
+    def get_folder(self, asset: Asset) -> Path:
+        if asset.folder is None:
+            raise ValueError("No folder set for custom asset")
+        return asset.folder
+
+    def get_manifest_name(self) -> str:
+        return "customs"
+
+    @property
+    def unit_name(self) -> str:
+        return "custom asset"
 
 class AssetInstaller:
     def __init__(self, installer: "Installer", temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
@@ -522,12 +570,12 @@ class AssetInstaller:
             session.headers["Accept"] = "application/octet-stream"
         self.download_file(session, url, out_path)
 
-    def download_github_release(self, provider: GithubReleasesProvider,
-                                options: DownloadOptions):
-        self.debug(f"Getting repository {provider.repository}")
-        repo = self.get_repo(provider.repository)
+    def download_github_release(self, asset: GithubReleasesAsset,
+                                group: AssetsGroup):
+        self.debug(f"Getting repository {asset.repository}")
+        repo = self.get_repo(asset.repository)
+        version = asset.version
         release: GitRelease
-        version = options.require_version(provider)
         if version == "latest":
             release = repo.get_latest_release()
         else:
@@ -535,12 +583,13 @@ class AssetInstaller:
         self.info(f"✅ Found release {release.title}")
         assets = release.get_assets()
         m = {a.name: a for a in assets}
-        names = provider.get_file_selector(self.registry).find_targets(list(m))
+        names = asset.get_file_selector(self.registry).find_targets(list(m))
+        folder = group.get_folder(asset)
         files: list[Path] = []
         for k, v in m.items():
             if k not in names:
                 continue
-            outPath = options.folder / k
+            outPath = folder / k
             self.info(f"🌐 Downloading artifact {k} to {outPath}..")
             self.download_github_file(v.url, outPath, True)
             # v.download_asset(str(outPath.resolve())) # type: ignore
@@ -548,13 +597,13 @@ class AssetInstaller:
         self.info(f"✅ Downloaded {len(files)} assets from release")
         return GithubReleaseData(repo, release, files=files)
 
-    def download_github_actions(self, provider: GithubActionsProvider,
-                                options: DownloadOptions):
-        repo = self.get_repo(provider.repository)
-        workflow = repo.get_workflow(provider.workflow)
-        runs = workflow.get_runs(branch=provider.branch)  # type: ignore
+    def download_github_actions(self, asset: GithubActionsAsset,
+                                group: AssetsGroup):
+        repo = self.get_repo(asset.repository)
+        workflow = repo.get_workflow(asset.workflow)
+        runs = workflow.get_runs(branch=asset.branch)  # type: ignore
         run: WorkflowRun | None
-        version = options.require_version(provider)
+        version = asset.version
         if version == "latest":
             run = runs[0]
         else:
@@ -564,12 +613,13 @@ class AssetInstaller:
             raise ValueError("No run found")
         ls = run.get_artifacts()
         artifacts: list[Artifact] = []
-        if not provider.name_pattern:
+        if not asset.name_pattern:
             artifacts = [a for a in ls]
         else:
-            artifacts = [a for a in ls if provider.name_pattern.search(a.name)]
+            artifacts = [a for a in ls if asset.name_pattern.search(a.name)]
         if len(artifacts) == 0:
             raise ValueError(f"⚠ No artifacts found in run {run.id}")
+        folder = group.get_folder(asset)
         files: list[Path] = []
         for artifact in artifacts:
             tmp = self.get_temp_file()
@@ -578,38 +628,36 @@ class AssetInstaller:
             self.download_github_file(artifact.archive_download_url, tmp)
             c = 0
             with ZipFile(tmp) as zf:
-                targets = provider.get_file_selector(self.registry).find_targets(zf.namelist())
+                targets = asset.get_file_selector(self.registry).find_targets(zf.namelist())
                 for name in targets:
                     self.info(f"Extracting {name}")
-                    zf.extract(name, path=options.folder)
-                    files.append(options.folder / name)
+                    zf.extract(name, path=folder)
+                    files.append(folder / name)
                     c += 1
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             self.remove_temp_file(tmp)
         return GithubActionsData(repo, workflow, run, files=files)
 
-    def download_modrinth(self, provider: ModrinthProvider, options: DownloadOptions):
-        if provider.version_is_id:
-            options.require_version(provider)
-        self.debug(f"Getting project {provider.project_id}")
-        project = self.modrinth.get_project(provider.project_id)
+    def download_modrinth(self, asset: ModrinthAsset, group: AssetsGroup):
+        self.debug(f"Getting project {asset.project_id}")
+        project = self.modrinth.get_project(asset.project_id)
         if not project:
-            raise ValueError(f"Unknown project {provider.project_id}")
+            raise ValueError(f"Unknown project {asset.project_id}")
         self.debug(f"Getting project versions..")
-        game_versions = [] if provider.ignore_game_version else [self.game_version]
+        game_versions = [] if asset.ignore_game_version else [self.game_version]
         vers = self.modrinth.get_versions(
-            provider.project_id, ["spigot", "paper"], game_versions)
+            asset.project_id, ["spigot", "paper"], game_versions)
         if not vers:
             raise ValueError(
-                f"Cannot find versions for project {provider.project_id}")
-        name_pattern = provider.version_name_pattern
+                f"Cannot find versions for project {asset.project_id}")
+        name_pattern = asset.version_name_pattern
         filtered: list[modrinth.Version] = []
         self.debug(f"Got {len(vers)} versions from {project.title}")
         for ver in vers:
             # ignoring mc version currently
-            if provider.channel and provider.channel != ver.version_type:
+            if asset.channel and asset.channel != ver.version_type:
                 continue
-            if provider.version_is_id and options.version != ver.id:
+            if asset.version_is_id and asset.version != ver.id:
                 continue
             if name_pattern and not name_pattern.search(ver.name):
                 continue
@@ -617,6 +665,7 @@ class AssetInstaller:
         if len(filtered) == 0:
             raise ValueError("No valid versions found")
 
+        folder = group.get_folder(asset)
         def download_version(ver: modrinth.Version):
             # TODO use_primary and file_name_pattern properties here to return multiple files
             primary = ver.get_primary()
@@ -624,12 +673,12 @@ class AssetInstaller:
                 self.logger.warning(
                     f"⚠ No primary file in version '{ver.name}'")
                 return None
-            out = options.folder / primary.filename
+            out = folder / primary.filename
             self.info(
                 f"🌐 Downloading primary file {primary.filename} from version '{ver.name}'")
             self.download_file(self.modrinth.session, str(primary.url), out)
             return [out]
-        if options.version == "latest":
+        if asset.version == "latest":
             ver = filtered[0]
             files = download_version(ver)
             if files:
@@ -640,66 +689,61 @@ class AssetInstaller:
                     f"Failed to download version {ver.name}. See errors above for details")
         # at this moment version is not latest and not an version id, so this is version_number
         ver = next(
-            (v for v in filtered if v.version_number == options.version), None)
+            (v for v in filtered if v.version_number == asset.version), None)
         if not ver:
             raise ValueError(
-                f"Failed to find valid version with number {options.version} out of {len(filtered)}")
+                f"Failed to find valid version with number {asset.version} out of {len(filtered)}")
         files = download_version(ver)
         if not files:
             raise ValueError(f"No valid files found in version {ver}")
         self.info(f"✅ Downloaded {len(files)} files")
         return ModrinthData(ver, files=files)
 
-    def download_direct_url(self, provider: DirectUrlProvider,
-                            options: DownloadOptions):
-        if provider.file_name:
-            name = provider.file_name
+    def download_direct_url(self, asset: DirectUrlAsset,
+                            group: AssetsGroup):
+        if asset.file_name:
+            name = asset.file_name
         else:
-            path = provider.url.path
+            path = asset.url.path
             if not path:
-                name = options.asset.resolve_asset_id()
+                name = asset.resolve_asset_id()
             else:
                 name = path.split("/")[-1]
-        out = options.folder / name
-        self.download_file(requests.Session(), str(provider.url), out)
+        out = group.get_folder(asset) / name
+        self.download_file(requests.Session(), str(asset.url), out)
         return DownloadData(files=[out], primary_file=out)
 
-    def download_jenkins(self, provider: JenkinsProvider,
-                         options: DownloadOptions):
-        options.require_version(provider)
-        j = jenkins.Jenkins(str(provider.url))
-        job = jm.Job.get_job(j, provider.job)
+    def download_jenkins(self, asset: JenkinsAsset, group: AssetsGroup):
+        j = jenkins.Jenkins(str(asset.url))
+        job = jm.Job.get_job(j, asset.job)
         if not job:
-            raise ValueError(f"Unknown job {provider.job}")
+            raise ValueError(f"Unknown job {asset.job}")
         build: jm.Build | None
-        if options.version == "latest":
+        if asset.version == "latest":
             lsb = job.lastSuccessfulBuild
             if not lsb:
                 raise ValueError(
                     f"No latest sucessfull build found for {job.name}")
-            build = jm.Build.get_build(j, provider.job, lsb.number)
+            build = jm.Build.get_build(j, asset.job, lsb.number)
         else:
-            try:
-                bn = int(options.version or "")
-            except:
-                raise ValueError("Version must be build number")
-            build = jm.Build.get_build(j, provider.job, bn)
+            build = jm.Build.get_build(j, asset.job, asset.version)
         if not build:
             raise ValueError(
-                f"Build {provider.job}#{options.version} not found")
+                f"Build {asset.job}#{asset.version} not found")
         if not build.result.is_complete_build():
             raise ValueError(
                 f"Build {build.fullDisplayName} is not completed: {build.result}")
         self.info(f"✅ Found build {build.fullDisplayName}")
-        fn = provider.get_file_selector(self.registry).find_targets(
+        fn = asset.get_file_selector(self.registry).find_targets(
             [a.fileName for a in build.artifacts])
         filtered = [a for a in build.artifacts if a.fileName in fn]
         if not filtered:
             raise ValueError("No artifacts passed filter")
 
+        folder = group.get_folder(asset)
         def download_artifact(a: jm.Artifact):
             url = f"{build.url}artifact/"+a.relativePath
-            to = options.folder / a.fileName
+            to = folder / a.fileName
             self.info(
                 f"🌐 Downloading artifact {a.fileName} from build '{build.fullDisplayName}'")
             self.download_file(self.session, url, to)
@@ -733,6 +777,9 @@ class Installer:
         self.assets = AssetInstaller(self, self.folder / "tmp", self.logger, self.session)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
+
+        self.install_notes: dict[str, tuple[str, AssetsGroup]] = {}
+        """Dict of asset id to note. Printed at installation finish"""
 
     def prepare(self):
         self.cache.load(self.registries)
@@ -793,42 +840,41 @@ class Installer:
         self.logger.info(f"✅ Installed core {i.display_name()}")
         self.cache.store_core(i)
 
-    def download_asset(self, provider: AssetProvider, options: DownloadOptions):
+    def download_asset(self, asset: Asset, group: AssetsGroup):
         data: DownloadData
-        if isinstance(provider, GithubReleasesProvider):
-            data = self.assets.download_github_release(provider, options)
-        elif isinstance(provider, GithubActionsProvider):
-            data = self.assets.download_github_actions(provider, options)
-        elif isinstance(provider, ModrinthProvider):
-            data = self.assets.download_modrinth(provider, options)
-        elif isinstance(provider, DirectUrlProvider):
-            data = self.assets.download_direct_url(provider, options)
-        elif isinstance(provider, JenkinsProvider):
-            data = self.assets.download_jenkins(provider, options)
+        if isinstance(asset, GithubReleasesAsset):
+            data = self.assets.download_github_release(asset, group)
+        elif isinstance(asset, GithubActionsAsset):
+            data = self.assets.download_github_actions(asset, group)
+        elif isinstance(asset, ModrinthAsset):
+            data = self.assets.download_modrinth(asset, group)
+        elif isinstance(asset, DirectUrlAsset):
+            data = self.assets.download_direct_url(asset, group)
+        elif isinstance(asset, JenkinsAsset):
+            data = self.assets.download_jenkins(asset, group)
         else:
-            raise ValueError(f"Unsupported provider {type(provider)}")
+            raise ValueError(f"Unsupported asset type {type(asset)}")
         return data
 
-    def install(self, asset: AssetManifest) -> tuple[AssetCache, bool]:
-        provider = asset.provider
+    def install(self, asset: Asset, group: AssetsGroup) -> tuple[AssetCache, bool]:
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
         cached = self.cache.check_asset(
             asset_id, asset_hash) if asset.caching else None
         if cached:
             self.logger.info(
-                f"⏩ Skipping {asset.type.value} '{asset_id}' as it already installed")
+                f"⏩ Skipping {group.unit_name} '{asset_id}' as it already installed")
             return cached, True
 
-        self.logger.info(f"🔄 Downloading {asset.type.value} {asset_id}")
-        asset_folder = asset.get_base_folder()
+        self.logger.info(f"🔄 Downloading {group.unit_name} {asset_id}")
+        asset_folder = group.get_folder(asset)
         target_folder = asset_folder if asset_folder.is_absolute() else self.folder / \
             asset_folder
-        options = DownloadOptions(asset, asset.version, target_folder)
+
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
         try:
-            data = self.download_asset(provider, options)
+            data = self.download_asset(asset, group)
         except Exception as e:
             raise ValueError(f"Exception downloading asset {asset_id}") from e
         data.files = [p.relative_to(
@@ -837,7 +883,7 @@ class Installer:
         if asset.actions:
             exprs = ExpressionProcessor(
                 logging.getLogger("Expr#"+asset_id), self.folder)
-            exprs.process(asset, data)
+            exprs.process(asset, group, data)
 
         cache = data.create_cache()
         result = AssetCache.create(asset_id, asset_hash, millis(), cache)
@@ -845,17 +891,22 @@ class Installer:
             self.cache.store_asset(result)
         return result, False
 
-    def install_list(self, ls: Sequence[AssetManifest], entry_name: str):
+    def install_list(self, ls: Sequence[Asset], group: AssetsGroup):
         if not ls:
             return
         total = len(ls)
+        entry_name = group.unit_name
         self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
-        failed: list[AssetManifest] = []
-        cached: list[AssetManifest] = []
+        failed: list[Asset] = []
+        cached: list[Asset] = []
         for a in ls:
             key = a.resolve_asset_id()
+            if isinstance(a, NoteAsset):
+                self.install_notes[key] = a.note, group
+                self.logger.info(f"🚩 {entry_name.capitalize()} {key} requires manual installation. See reason at end of installation")
+                continue
             try:
-                _, is_cached = self.install(a)
+                _, is_cached = self.install(a, group)
             except Exception as e:
                 self.logger.error(
                     f"Exception installing asset {key!r}", exc_info=e)
@@ -873,16 +924,26 @@ class Installer:
                 f"✅ Installed {total}/{total}{cached_str} {entry_name}(s)")
 
     def install_mods(self):
-        self.install_list(self.manifest.mods, "mod")
+        self.install_list(self.manifest.mods, ModsGroup())
 
     def install_plugins(self):
-        self.install_list(self.manifest.plugins, "plugin")
+        self.install_list(self.manifest.plugins, PluginsGroup())
 
     def install_datapacks(self):
-        self.install_list(self.manifest.datapacks, "datapack")
+        self.install_list(self.manifest.datapacks, DatapacksGroup())
 
     def install_customs(self):
-        self.install_list(self.manifest.customs, "custom asset")
+        self.install_list(self.manifest.customs, CustomsGroup())
+    
+    def show_notes(self):
+        if not self.install_notes:
+            return
+        d = self.install_notes
+        self.logger.info(f"🚩 You have {len(d)} note(s) from assets thats need to be downloaded manually")
+        self.logger.info("🚩 You can ignore this messages if you installed them.")
+        for (v, g) in d.values():
+            entry_name = g.unit_name
+            self.logger.info(f"🚩 {entry_name.capitalize()}: {v}")
 
 
 ROOT_REGISTRY = Registries()
@@ -895,10 +956,10 @@ FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
     "file_selectors", FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
-PROVIDERS = ROOT_REGISTRY.create_model_registry("providers", AssetProvider)
-PROVIDERS.register_models(ModrinthProvider, GithubReleasesProvider,
-                          DirectUrlProvider, GithubActionsProvider,
-                          JenkinsProvider)
+ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
+ASSETS.register_models(ModrinthAsset, GithubReleasesAsset,
+                          DirectUrlAsset, GithubActionsAsset,
+                          JenkinsAsset, NoteAsset)
 
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
@@ -958,7 +1019,7 @@ def main():
     "--github-token",
     type=str,
     default=None,
-    help="GitHub token for github providers",
+    help="GitHub token for github assets",
 )
 @click.option(
     "--debug",
@@ -991,6 +1052,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     installer.install_plugins()
     installer.install_datapacks()
     installer.install_customs()
+    installer.show_notes()
     installer.shutdown()
 
 # Update lifecycle:
