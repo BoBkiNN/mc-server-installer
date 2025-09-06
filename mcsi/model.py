@@ -218,7 +218,7 @@ class GithubReleasesAsset(Asset):
 
 class GithubActionsAsset(Asset):
     """Downloads artifact from github actions"""
-    version: LatestOrStr
+    version: int | Literal["latest"]
     repository: str
     branch: str = "master"
     workflow: str

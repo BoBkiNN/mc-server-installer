@@ -835,19 +835,22 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
 
 class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActionsCache, GithubActionsData]):
 
-    def download(self, assets: AssetInstaller, asset: GithubActionsAsset, group: AssetsGroup) -> GithubActionsData:
-        repo = self.get_repo(assets, asset.repository)
-        workflow = repo.get_workflow(asset.workflow)
+    def get_run(self, workflow: Workflow, asset: GithubActionsAsset):
         runs = workflow.get_runs(branch=asset.branch)  # type: ignore
         run: WorkflowRun | None
         version = asset.version
         if version == "latest":
             run = runs[0]
         else:
-            number = int(version)
-            run = next((r for r in runs if r.run_number == number), None)
+            run = next((r for r in runs if r.run_number == version), None)
         if run is None:
             raise ValueError("No run found")
+        return run
+
+    def download(self, assets: AssetInstaller, asset: GithubActionsAsset, group: AssetsGroup) -> GithubActionsData:
+        repo = self.get_repo(assets, asset.repository)
+        workflow = repo.get_workflow(asset.workflow)
+        run = self.get_run(workflow, asset)
         ls = run.get_artifacts()
         artifacts: list[Artifact] = []
         if not asset.name_pattern:
@@ -875,9 +878,21 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
             self.info(f"✅ Extracted {c} files from artifact {artifact.name}")
             assets.remove_temp_file(tmp)
         return GithubActionsData(repo, workflow, run, files=files)
+    
+    def supports_update_checking(self) -> bool:
+        return True
 
     def has_update(self, assets: AssetInstaller, asset: GithubActionsAsset, group: AssetsGroup, cached: GithubActionsCache) -> UpdateStatus:
-        raise NotImplementedError
+        repo = self.get_repo(assets, asset.repository)
+        workflow = repo.get_workflow(asset.workflow)
+        run = self.get_run(workflow, asset)
+        if cached.run_number > run.run_number:
+            return UpdateStatus.AHEAD
+        elif cached.run_number < run.run_number:
+            return UpdateStatus.OUTDATED
+        else:
+            return UpdateStatus.UP_TO_DATE
+
 
 
 class Installer:
