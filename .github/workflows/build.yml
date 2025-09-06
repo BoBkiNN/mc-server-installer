@@ -66,12 +66,8 @@ jobs:
       
       - name: Set version
         id: version
-        run: |
-          if [ -z "${{ inputs.version_name }}" ]; then
-            echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
-          else
-            echo "value=${{ inputs.version_name }}" >> $GITHUB_OUTPUT
-          fi
+        run: echo "value=${{ inputs.version_name != '' && inputs.version_name || format('b.{0}', github.run_number) }}" >> $GITHUB_OUTPUT
+   
 
       - name: Build fat zipapp
         run: |
