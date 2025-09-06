@@ -328,13 +328,27 @@ class Manifest(BaseModel):
         frozen = True
         use_attribute_docstrings = True
 
+    _assets: dict[str, tuple[Asset, str]] = {}
+
+    def resolve_assets(self):
+        for a in self.mods:
+            id = a.resolve_asset_id()
+            self._assets[id] = (a, "mod")
+        for a in self.plugins:
+            id = a.resolve_asset_id()
+            self._assets[id] = (a, "plugin")
+        for a in self.datapacks:
+            id = a.resolve_asset_id()
+            self._assets[id] = (a, "datapack")
+        for a in self.customs:
+            id = a.resolve_asset_id()
+            self._assets[id] = (a, "custom")
+
     def get_asset(self, id: str):
-        ls = self.mods + self.plugins + self.datapacks + self.customs
-        for asset in ls:
-            rid = asset.resolve_asset_id()
-            if rid == id:
-                return asset
-        return None
+        pair = self._assets.get(id, None)
+        if not pair:
+            return None
+        return pair[0]
 
     @staticmethod
     def load(file: Path, registries: "Registries", logger: logging.Logger) -> "Manifest":
@@ -352,9 +366,11 @@ class Manifest(BaseModel):
         if ver is not None and ver != __version__:
             logger.warning(f"Manifest was made for different version ({ver}). You might expect errors")
         try:
-            return Manifest.model_validate(d, context={REGISTRIES_CONTEXT_KEY: registries})
+            m = Manifest.model_validate(d, context={REGISTRIES_CONTEXT_KEY: registries})
         except ValidationError as e:
             raise ValueError("Failed to load manifest") from e
+        m.resolve_assets()
+        return m
 
 
 class FilesCache(BaseModel):
