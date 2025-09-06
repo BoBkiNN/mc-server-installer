@@ -56,7 +56,7 @@ Each action has an optional `if` field which can contain python expression (dont
 ```json5
 {
     type: "dummy",
-    if: "len(data.files) == 1"
+    if: "len(data.files) == 1",
     expr: "'Hello world!'"
 }
 ```
