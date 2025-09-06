@@ -587,9 +587,10 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
     def download(self, assets: AssetInstaller, asset: AT, group: AssetsGroup) -> DT:
         raise NotImplementedError
     
-    def supports_update_checking(self):
+    def supports_update_checking(self) -> bool:
         return False
 
+    # TODO return new version name for logging
     @abstractmethod
     def has_update(self, assets: AssetInstaller, asset: AT,
                    group: AssetsGroup, cached: CT) -> UpdateStatus:
@@ -600,12 +601,8 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
 
     def get_logger_name(self):
         return "Jenkins"
-
-    def download(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup) -> JenkinsData:
-        j = jenkins.Jenkins(str(asset.url))
-        job = jm.Job.get_job(j, asset.job)
-        if not job:
-            raise ValueError(f"Unknown job {asset.job}")
+    
+    def get_build(self, j: jenkins.Jenkins, job: jm.Job, asset: JenkinsAsset):
         build: jm.Build | None
         if asset.version == "latest":
             lsb = job.lastSuccessfulBuild
@@ -621,6 +618,14 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
         if not build.result.is_complete_build():
             raise ValueError(
                 f"Build {build.fullDisplayName} is not completed: {build.result}")
+        return build
+
+    def download(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup) -> JenkinsData:
+        j = jenkins.Jenkins(str(asset.url))
+        job = jm.Job.get_job(j, asset.job)
+        if not job:
+            raise ValueError(f"Unknown job {asset.job}")
+        build: jm.Build = self.get_build(j, job, asset)
         self.info(f"✅ Found build {build.fullDisplayName}")
         fn = asset.get_file_selector(assets.registry).find_targets(
             [a.fileName for a in build.artifacts])
@@ -648,8 +653,22 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
                     f"⚠  Failed to download artifact {a.fileName}")
         return JenkinsData(job, build, artifacts=list(files.values()), files=list(files.keys()))
     
+    def supports_update_checking(self):
+        return True
+    
     def has_update(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup, cached: JenkinsCache) -> UpdateStatus:
-        raise NotImplementedError
+        j = jenkins.Jenkins(str(asset.url))
+        job = jm.Job.get_job(j, asset.job)
+        if not job:
+            raise ValueError(f"Unknown job {asset.job}")
+        build: jm.Build = self.get_build(j, job, asset)
+        self.info(f"✅ Found build {build.fullDisplayName}")
+        if cached.build_number > build.number:
+            return UpdateStatus.AHEAD
+        elif cached.build_number < build.number:
+            return UpdateStatus.OUTDATED
+        else:
+            return UpdateStatus.UP_TO_DATE
 
 class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData]):
 
@@ -1067,6 +1086,7 @@ class Installer:
         self.logger.info(f"🔁 Checking {asset_id} for updates")
         status = self.check_update(asset, group, cached)
         if status != UpdateStatus.OUTDATED:
+            self.logger.info(f"💠 No new updates for {asset_id}")
             return None
         self.logger.info(f"💠 New update found for {group.unit_name} {asset_id}")
         if asset.is_latest() is False: # fixed version
