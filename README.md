@@ -27,6 +27,21 @@ Each asset has a:
 - `actions` - List of actions to execute on downloaded data for correct installation using expression templates
 - `folder` - folder where asset will be downloaded. Used only by custom assets
 
+Example asset declaring to download latest version of [ProtocolLib](https://github.com/dmulloy2/ProtocolLib) from github and rename downloaded file to ProtocolLib-[version].jar:
+```json5
+{
+  type: "github",
+  repository: "dmulloy2/ProtocolLib",
+  version: "latest",
+  actions: [
+    {
+      type: "rename",
+      to: "ProtocolLib-${{data.tag_name}}.jar"
+    }
+  ]
+}
+```
+
 ### Provider
 Provider is a some service or method used to perform downloading and update checking for asset.
 
