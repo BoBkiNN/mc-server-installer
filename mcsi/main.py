@@ -247,6 +247,7 @@ class GithubActionsData(DownloadData):
 @dataclass
 class ModrinthData(DownloadData):
     version: modrinth.Version
+    project: modrinth.Project
 
     def create_cache(self) -> FilesCache:
         return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
@@ -741,7 +742,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
             files = download_version(ver)
             if files:
                 self.info(f"✅ Downloaded latest version {ver.name}")
-                return ModrinthData(ver, files=files)
+                return ModrinthData(ver, project, files=files)
             else:
                 raise ValueError(
                     f"Failed to download version {ver.name}. See errors above for details")
@@ -755,7 +756,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         if not files:
             raise ValueError(f"No valid files found in version {ver}")
         self.info(f"✅ Downloaded {len(files)} files")
-        return ModrinthData(ver, files=files)
+        return ModrinthData(ver, project, files=files)
     
     def has_update(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup, cached: ModrinthCache) -> UpdateStatus:
         raise NotImplementedError
