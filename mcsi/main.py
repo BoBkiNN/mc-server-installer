@@ -1036,7 +1036,7 @@ class Installer:
         try:
             return provider.has_update(self.assets, asset, group, cached)
         except Exception as e:
-            raise ValueError(f"Exception checking update for {group}")
+            raise ValueError(f"Exception checking update for {group.unit_name} {asset.resolve_asset_id()}") from e
 
 
 ROOT_REGISTRY = Registries()
