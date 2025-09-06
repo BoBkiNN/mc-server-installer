@@ -1178,7 +1178,7 @@ class Installer:
         up_to_date = sum((1 for r in results.values() if r == UpdateResult.UP_TO_DATE))
         updated = sum((1 for r in results.values() if r == UpdateResult.UPDATED))
         failed = sum((1 for r in results.values() if r == UpdateResult.FAILED))
-        self.logger.info(f"💠 Completed update check for {group.unit_name}s.✅ No updates: {up_to_date}. ✅ Updated: {updated}. ❌ Failed: {failed}")
+        self.logger.info(f"💠 Completed update check for {group.unit_name}s. ✅ No updates: {up_to_date}. ✅ Updated: {updated}. ❌ Failed: {failed}")
     
     def update_all(self, dry: bool):
         self.update_list(self.manifest.mods, ModsGroup(), dry)
