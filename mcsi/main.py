@@ -628,7 +628,7 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
         if not job:
             raise ValueError(f"Unknown job {asset.job}")
         build: jm.Build = self.get_build(j, job, asset)
-        self.info(f"✅ Found build {build.fullDisplayName}")
+        self.info(f"Found build {build.fullDisplayName}")
         fn = asset.get_file_selector(assets.registry).find_targets(
             [a.fileName for a in build.artifacts])
         filtered = [a for a in build.artifacts if a.fileName in fn]
@@ -664,7 +664,7 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
         if not job:
             raise ValueError(f"Unknown job {asset.job}")
         build: jm.Build = self.get_build(j, job, asset)
-        self.info(f"✅ Found build {build.fullDisplayName}")
+        self.info(f"Found build {build.fullDisplayName}")
         if cached.build_number > build.number:
             return UpdateStatus.AHEAD
         elif cached.build_number < build.number:
@@ -735,6 +735,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         if not project:
             raise ValueError(f"Unknown project {asset.project_id}")
         ver = self.get_version(assets, project, asset)
+        self.logger.info(f"Found version {ver.name} ({ver.version_number})")
 
         folder = group.get_folder(asset)
 
@@ -766,6 +767,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         if not project:
             raise ValueError(f"Unknown project {asset.project_id}")
         ver = self.get_version(assets, project, asset)
+        self.logger.info(f"Found version {ver.name} ({ver.version_number})")
         # maybe semver when possible?
         if cached.version_id != ver.id:
             return UpdateStatus.OUTDATED
@@ -813,7 +815,7 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
         self.debug(f"Getting repository {asset.repository}")
         repo = self.get_repo(assets, asset.repository)
         release: GitRelease = self.get_release(repo, asset.version)
-        self.info(f"✅ Found release {release.title!r}")
+        self.info(f"Found release {release.title!r}")
         ls = release.get_assets()
         m = {a.name: a for a in ls}
         names = asset.get_file_selector(assets.registry).find_targets(list(m))
@@ -837,7 +839,7 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
         self.debug(f"Getting repository {asset.repository}")
         repo = self.get_repo(assets, asset.repository)
         release: GitRelease = self.get_release(repo, asset.version)
-        self.info(f"✅ Found release {release.title!r}")
+        self.info(f"Found release {release.title!r}")
         if release.tag_name != cached.tag:
             return UpdateStatus.OUTDATED
         else:
@@ -862,6 +864,7 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
         repo = self.get_repo(assets, asset.repository)
         workflow = repo.get_workflow(asset.workflow)
         run = self.get_run(workflow, asset)
+        self.info(f"Found run {run.name}#{run.run_number}")
         ls = run.get_artifacts()
         artifacts: list[Artifact] = []
         if not asset.name_pattern:
@@ -897,6 +900,7 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
         repo = self.get_repo(assets, asset.repository)
         workflow = repo.get_workflow(asset.workflow)
         run = self.get_run(workflow, asset)
+        self.info(f"Found run {run.name}#{run.run_number}")
         if cached.run_number > run.run_number:
             return UpdateStatus.AHEAD
         elif cached.run_number < run.run_number:
