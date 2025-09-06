@@ -4,7 +4,7 @@ This is an utility written in python that allows creating server manifests decla
 
 **Go to**:
 * 🔧 [Installation, running, and usage](#installation-and-running)  
-* 🔧 [Creating manifests](#writing-you-own-manifest)
+* ✏ [Creating manifests](#writing-you-own-manifest)
 
 # Manifest
 
