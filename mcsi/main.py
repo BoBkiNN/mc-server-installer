@@ -1023,6 +1023,19 @@ class Installer:
         for (v, g) in d.values():
             entry_name = g.unit_name
             self.logger.info(f"🚩 {entry_name.capitalize()}: {v}")
+    
+    def check_update(self, asset: Asset, group: AssetsGroup, cached: FilesCache) -> UpdateStatus:
+        reg = self.registries.get_registry(AssetProvider)
+        if not reg:
+            raise ValueError("Failed to find providers registry!")
+        key = asset.get_type()
+        provider = reg.get(key)
+        if not provider:
+            raise ValueError(f"Unknown provider {key!r}")
+        try:
+            return provider.has_update(self.assets, asset, group, cached)
+        except Exception as e:
+            raise ValueError(f"Exception checking update for {group}")
 
 
 ROOT_REGISTRY = Registries()
