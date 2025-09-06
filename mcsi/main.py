@@ -759,7 +759,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         if not project:
             raise ValueError(f"Unknown project {asset.project_id}")
         ver = self.get_version(assets, project, asset)
-        self.logger.info(f"Found version {ver.name} ({ver.version_number})")
+        self.logger.info(f"Found version {ver.name!r} ({ver.version_number})")
 
         folder = group.get_folder(asset)
 
@@ -791,7 +791,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         if not project:
             raise ValueError(f"Unknown project {asset.project_id}")
         ver = self.get_version(assets, project, asset)
-        self.logger.info(f"Found version {ver.name} ({ver.version_number})")
+        self.logger.info(f"Found version {ver.name!r} ({ver.version_number})")
         # maybe semver when possible?
         if cached.version_id != ver.id:
             return UpdateStatus.OUTDATED
@@ -888,7 +888,7 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
         repo = self.get_repo(assets, asset.repository)
         workflow = repo.get_workflow(asset.workflow)
         run = self.get_run(workflow, asset)
-        self.info(f"Found run {run.name}#{run.run_number}")
+        self.info(f"Found run '{run.name}#{run.run_number}'")
         ls = run.get_artifacts()
         artifacts: list[Artifact] = []
         if not asset.name_pattern:
@@ -924,7 +924,7 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
         repo = self.get_repo(assets, asset.repository)
         workflow = repo.get_workflow(asset.workflow)
         run = self.get_run(workflow, asset)
-        self.info(f"Found run {run.name}#{run.run_number}")
+        self.info(f"Found run '{run.name}#{run.run_number}'")
         if cached.run_number > run.run_number:
             return UpdateStatus.AHEAD
         elif cached.run_number < run.run_number:
