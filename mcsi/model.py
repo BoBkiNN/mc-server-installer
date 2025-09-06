@@ -432,6 +432,8 @@ class CoreCache(BaseModel):
     type: str
 
     def display_name(self) -> str:
+        if hasattr(self.data, "display_name"):
+            return getattr(self.data, "display_name")()
         return f"{self.type}-({self.version_hash})"
 
 class PaperCoreCache(FilesCache):

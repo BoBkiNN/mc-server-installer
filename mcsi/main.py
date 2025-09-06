@@ -986,9 +986,7 @@ class Installer:
         self.assets.clear_temp()
         self.session.close()
 
-    def install_paper_core(self, core: PaperCoreManifest) -> CoreCache:
-        api = papermc.PaperMcFill(self.session)
-        mc = self.manifest.mc_version
+    def get_paper_build(self, api: papermc.PaperMcFill, core: PaperCoreManifest, mc: str):
         build: papermc.Build | None
         if core.build == PaperLatestBuild.LATEST:
             build = api.get_latest_build("paper", mc)
@@ -1011,6 +1009,12 @@ class Installer:
         if build is None:
             raise ValueError(
                 f"Failed to find paper build {core.build} for MC {mc}")
+        return build
+
+    def install_paper_core(self, core: PaperCoreManifest) -> CoreCache:
+        api = papermc.PaperMcFill(self.session)
+        mc = self.manifest.mc_version
+        build = self.get_paper_build(api, core, mc)
         download = build.get_default_download()
         jar_name = core.file_name if core.file_name else download.name
         out = self.folder / jar_name
@@ -1229,7 +1233,32 @@ class Installer:
         self.update_list(self.manifest.plugins, PluginsGroup(), dry)
         self.update_list(self.manifest.datapacks, DatapacksGroup(), dry)
         self.update_list(self.manifest.customs, CustomsGroup(), dry)
-
+    
+    def update_core(self, dry: bool):
+        core = self.manifest.core
+        cache = self.cache.check_core(core, self.manifest.mc_version)
+        if not cache:
+            return
+        self.logger.info("💠 Checking core for updates")
+        new_update: int | None = None
+        if isinstance(cache.data, PaperCoreCache):
+            api = papermc.PaperMcFill(self.session)
+            mc = self.manifest.mc_version
+            build = self.get_paper_build(api, core, mc)
+            bn = cache.data.build_number
+            if bn < build.id:
+                new_update = build.id
+        else:
+            raise ValueError("Unknown core cache to update from")
+        if not new_update:
+            self.logger.info("No new core updates")
+            return
+        self.logger.info(f"💠 Found new core update: #{new_update}")
+        if dry:
+            self.logger.info(f"Dry mode enabled, not installing core update")
+            return
+        self.cache.invalidate_core()
+        self.install_core()  
 
 
 ROOT_REGISTRY = Registries()
@@ -1388,7 +1417,7 @@ def schema(out: Path, pretty: bool):
 @click.option(
     "--dry",
     is_flag=True,
-    help="Dry mod. Checks for updates without installing them",
+    help="Dry mode. Checks for updates without installing them",
 )
 @click.option(
     "--github-token",
@@ -1414,6 +1443,7 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
     installer.prepare(False)
+    installer.update_core(dry)
     installer.update_all(dry)
     installer.shutdown()
 
