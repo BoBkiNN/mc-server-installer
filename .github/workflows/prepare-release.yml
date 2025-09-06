@@ -1,0 +1,38 @@
+name: Prepare release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Unpack all artifacts
+        run: |
+          mkdir release_files
+          for f in artifacts/*; do
+            if [[ -d "$f" ]]; then
+              cp -r "$f"/* release_files/
+            elif [[ "$f" == *.zip ]]; then
+              unzip -o "$f" -d release_files/
+            elif [[ "$f" == *.tar.gz ]]; then
+              tar -xzf "$f" -C release_files/
+            fi
+          done
+          ls -R release_files
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: release_files/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
