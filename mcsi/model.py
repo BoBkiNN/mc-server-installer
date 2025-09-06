@@ -148,7 +148,7 @@ class Asset(ABC, TypedModel):
         else:
             v = self.create_asset_id()
         self._asset_id = f"({v})@{t}"
-        return v
+        return self._asset_id
 
     @abstractmethod
     def create_asset_id(self) -> str:
@@ -330,9 +330,10 @@ class Manifest(BaseModel):
 
     def get_asset(self, id: str):
         ls = self.mods + self.plugins + self.datapacks + self.customs
-        for mf in ls:
-            if mf.resolve_asset_id() == id:
-                return mf
+        for asset in ls:
+            rid = asset.resolve_asset_id()
+            if rid == id:
+                return asset
         return None
 
     @staticmethod
