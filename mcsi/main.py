@@ -474,6 +474,7 @@ class AssetInstaller:
         self.game_version = installer.manifest.mc_version
         self.registry = installer.registries
         self.auth = installer.auth
+        self.debug_enabled = installer.debug
         self.temp_folder = temp_folder
         self.logger = logger
         _user_agent: str | bytes = session.headers["User-Agent"]
@@ -536,6 +537,25 @@ class AssetInstaller:
         bar.close()
 
 
+class LateInit(Generic[T]):
+    def __init__(self):
+        self._value: Optional[T] = None
+        self._value_set: bool = False
+
+    def __get__(self, instance, owner) -> T:
+        if not self._value_set:
+            raise AttributeError(
+                "LateInit variable accessed before initialization")
+        return self._value  # type: ignore
+
+    def __set__(self, instance, value: T) -> None:
+        self._value = value
+        self._value_set = True
+
+    def __delete__(self, instance) -> None:
+        self._value = None
+        self._value_set = False
+
 class UpdateStatus(Enum):
     UP_TO_DATE = False
     AHEAD = False
@@ -549,6 +569,10 @@ DT = TypeVar("DT", bound=DownloadData)
 
 class AssetProvider(ABC, Generic[AT, CT, DT]):
     _logger: logging.Logger | None = None
+    debug_enabled: LateInit[bool] = LateInit()
+
+    def setup(self, assets: AssetInstaller):
+        self.debug_enabled = assets.debug_enabled
 
     def get_logger_name(self):
         return type(self).__name__
@@ -558,7 +582,7 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
         if self._logger:
             return self._logger
         l = logging.getLogger(self.get_logger_name())
-        l.setLevel(logging.INFO) # inject debug mode
+        l.setLevel(logging.DEBUG if self.debug_enabled else logging.INFO)
         self._logger = l
         return l
 
@@ -937,8 +961,19 @@ class Installer:
 
         self.install_notes: dict[str, tuple[str, AssetsGroup]] = {}
         """Dict of asset id to note. Printed at installation finish"""
+    
+    def setup_providers(self):
+        reg = self.registries.get_registry(AssetProvider)
+        if reg is None:
+            raise ValueError("Registry providers is not set!")
+        for k, v in reg.all().items():
+            try:
+                v.setup(self.assets)
+            except Exception as e:
+                raise ValueError(f"Failed to setup provider {k!r}") from e
 
     def prepare(self, validate: bool):
+        self.setup_providers()
         self.cache.load(self.registries)
         if validate:
             self.cache.check_all_assets(self.manifest)
