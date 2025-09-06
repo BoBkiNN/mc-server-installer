@@ -150,3 +150,4 @@ Plans for new features and improvements in this project:
 - Manifest metadata about creator and etc
 - Provide example manifest
 - Hangar support
+- Check all assets ids for uniqueness
