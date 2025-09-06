@@ -2,6 +2,10 @@
 
 This is an utility written in python that allows creating server manifests declaring plugins for easy share and install.
 
+**Go to**:
+* 🔧 [Installation, running, and usage](#installation-and-running)  
+* 🔧 [Creating manifests](#writing-you-own-manifest)
+
 # Manifest
 
 Manifest is a text file where user describes plugin list using providers system.<br>
@@ -96,7 +100,6 @@ Examle minimal command:
 This command above uses `myserver.json5` manifest file to install server into current folder.
 
 # Writing you own manifest
-Creating you own manifest is easier and faster with VSCode or any other IDE and added `$schema` field with link to [manifest_schema.json](mcsi/manifest_schema.json) to see available fields and values.
 The primary requirements is knowledge of language in which manifest is written, this docs and having an IDE, like Visual Studio Code.
 
 ## Selecting language
@@ -116,7 +119,7 @@ Schema is description of document which used by IDE to provide you documentation
 To attach a schema you must find the link to `manifest_schema` and insert it into document in place supported by your IDE. The most common way is using JSON-like language:
 ```json5
 {
-    $schema: "https://raw.githubusercontent.com/BoBkiNN/mc-server-installer/refs/heads/main/mcsi/manifest_schema.json"
+    $schema: "https://raw.githubusercontent.com/BoBkiNN/mc-server-installer/refs/tags/2.1.2/mcsi/manifest_schema.json"
     // rest of your manifest
 }
 ```
