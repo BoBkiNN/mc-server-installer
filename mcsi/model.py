@@ -155,6 +155,9 @@ class Asset(ABC, TypedModel):
         """Returns asset id without versions. Do not invokes any IO"""
         ...
     
+    def is_latest(self) -> bool | None:
+        return None
+    
     def get_file_selector(self, registries: Registries):
         if self._file_selector:
             return self._file_selector
@@ -194,6 +197,9 @@ class ModrinthAsset(Asset):
 
     def create_asset_id(self):
         return self.project_id
+    
+    def is_latest(self) -> bool:
+        return self.version == "latest"
 
 
 class GithubReleasesAsset(Asset):
@@ -205,6 +211,9 @@ class GithubReleasesAsset(Asset):
 
     def create_asset_id(self) -> str:
         return self.repository
+    
+    def is_latest(self) -> bool:
+        return self.version == "latest"
 
 
 class GithubActionsAsset(Asset):
@@ -220,6 +229,9 @@ class GithubActionsAsset(Asset):
 
     def create_asset_id(self) -> str:
         return self.repository+"/"+self.workflow+"@"+self.branch
+    
+    def is_latest(self) -> bool:
+        return self.version == "latest"
 
 
 class DirectUrlAsset(Asset):
@@ -243,6 +255,9 @@ class JenkinsAsset(Asset):
     def create_asset_id(self) -> str:
         host = self.url.host or "Unknown"
         return f"{self.job}@{host}"
+    
+    def is_latest(self) -> bool:
+        return self.version == "latest"
 
 class NoteAsset(Asset):
     """Asset that must manually be installed.<br>

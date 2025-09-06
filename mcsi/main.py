@@ -585,12 +585,15 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
 
     @abstractmethod
     def download(self, assets: AssetInstaller, asset: AT, group: AssetsGroup) -> DT:
-        return NotImplemented
+        raise NotImplementedError
+    
+    def supports_update_checking(self):
+        return False
 
     @abstractmethod
     def has_update(self, assets: AssetInstaller, asset: AT,
                    group: AssetsGroup, cached: CT) -> UpdateStatus:
-        return NotImplemented
+        raise NotImplementedError
 
 
 class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
@@ -646,7 +649,7 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
         return JenkinsData(job, build, artifacts=list(files.values()), files=list(files.keys()))
     
     def has_update(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup, cached: JenkinsCache) -> UpdateStatus:
-        return NotImplemented
+        raise NotImplementedError
 
 class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData]):
 
@@ -667,7 +670,7 @@ class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData])
         return DownloadData(files=[out], primary_file=out)
     
     def has_update(self, assets: AssetInstaller, asset: DirectUrlAsset, group: AssetsGroup, cached: FilesCache) -> UpdateStatus:
-        return NotImplemented
+        raise NotImplementedError
 
 class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]):
     def get_logger_name(self):
@@ -736,7 +739,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         return ModrinthData(ver, files=files)
     
     def has_update(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup, cached: ModrinthCache) -> UpdateStatus:
-        return NotImplemented
+        raise NotImplementedError
 
 
 class GithubLikeProvider(AssetProvider[AT, CT, DT]):
@@ -795,7 +798,7 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
         return GithubReleaseData(repo, release, files=files)
     
     def has_update(self, assets: AssetInstaller, asset: GithubReleasesAsset, group: AssetsGroup, cached: GithubReleaseCache) -> UpdateStatus:
-        return NotImplemented
+        raise NotImplementedError
 
 
 class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActionsCache, GithubActionsData]):
@@ -842,7 +845,7 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
         return GithubActionsData(repo, workflow, run, files=files)
 
     def has_update(self, assets: AssetInstaller, asset: GithubActionsAsset, group: AssetsGroup, cached: GithubActionsCache) -> UpdateStatus:
-        return NotImplemented
+        raise NotImplementedError
 
 
 class Installer:
@@ -866,9 +869,10 @@ class Installer:
         self.install_notes: dict[str, tuple[str, AssetsGroup]] = {}
         """Dict of asset id to note. Printed at installation finish"""
 
-    def prepare(self):
+    def prepare(self, validate: bool):
         self.cache.load(self.registries)
-        self.cache.check_all_assets(self.manifest)
+        if validate:
+            self.cache.check_all_assets(self.manifest)
         self.logger.info(
             f"✅ Prepared installer for MC {self.manifest.mc_version}")
 
@@ -954,7 +958,7 @@ class Installer:
         if not target_folder.exists():
             target_folder.mkdir(parents=True, exist_ok=True)
         try:
-            data = self.download_asset(asset, group)
+            data: DownloadData = self.download_asset(asset, group)
         except Exception as e:
             raise ValueError(f"Exception downloading asset {asset_id}") from e
         data.files = [p.relative_to(
@@ -1025,7 +1029,7 @@ class Installer:
             entry_name = g.unit_name
             self.logger.info(f"🚩 {entry_name.capitalize()}: {v}")
     
-    def check_update(self, asset: Asset, group: AssetsGroup, cached: FilesCache) -> UpdateStatus:
+    def check_update(self, asset: Asset, group: AssetsGroup, cached: AssetCache) -> UpdateStatus:
         reg = self.registries.get_registry(AssetProvider)
         if not reg:
             raise ValueError("Failed to find providers registry!")
@@ -1034,9 +1038,84 @@ class Installer:
         if not provider:
             raise ValueError(f"Unknown provider {key!r}")
         try:
-            return provider.has_update(self.assets, asset, group, cached)
+            return provider.has_update(self.assets, asset, group, cached.data)
+        except NotImplementedError as e:
+            raise ValueError(f"Provider {key!r} do not implemented update checking")
         except Exception as e:
             raise ValueError(f"Exception checking update for {group.unit_name} {asset.resolve_asset_id()}") from e
+    
+    def update_lifecycle(self, asset: Asset, group: AssetsGroup, dry: bool):
+        """
+        Returns True if successfully installed and False if not <br>
+        Returns None if no updates available or dry run
+        """
+        reg = self.registries.get_registry(AssetProvider)
+        if not reg:
+            raise ValueError("Failed to find providers registry!")
+        key = asset.get_type()
+        provider = reg.get(key)
+        if not provider:
+            raise ValueError(f"Unknown provider {key!r}")
+        if not provider.supports_update_checking():
+            self.logger.debug(f"Provider {key!r} does not support update checking.")
+            return None
+        asset_id = asset.resolve_asset_id()
+        asset_hash = asset.stable_hash()
+        cached = self.cache.check_asset(asset_id, asset_hash) if asset.caching else None
+        if not cached:
+            return None
+        self.logger.info(f"🔁 Checking {asset_id} for updates")
+        status = self.check_update(asset, group, cached)
+        if status != UpdateStatus.OUTDATED:
+            return None
+        self.logger.info(f"💠 New update found for {group.unit_name} {asset_id}")
+        if asset.is_latest() is False: # fixed version
+            self.logger.debug(f"Skipping {group.unit_name} {asset_id} as it has fixed version")
+            return None
+        if dry:
+            self.logger.debug("Dry run, do not installing update")
+            return None
+        self.cache.invalidate_asset(asset, reason=InvalidReason("outdated", "New version is found"))
+        try:
+            self.install(asset, group)
+        except Exception as e:
+            self.logger.error(f"❌ Failed to install update for {group.unit_name} {asset_id}", exc_info=e)
+            return False
+        self.cache.save()
+        return True
+        
+    def update_list(self, assets: Sequence[Asset], group: AssetsGroup, dry: bool):
+        self.logger.info(f"💠 Checking updates for {len(assets)} {group.unit_name}(s)")
+        updated: list[Asset] = []
+        failed: list[Asset] = []
+        no_updates: list[Asset] = []
+        for asset in assets:
+            asset_id = asset.resolve_asset_id()
+            if asset.is_latest() is None:
+                self.logger.debug(f"Skipping asset {asset_id} as it has fixed version")
+                no_updates.append(asset)
+                continue
+            try:
+                r = self.update_lifecycle(asset, group, dry)
+            except Exception as e:
+                self.logger.error(
+                    f"❌ Failed to complete update lifecycle for {group.unit_name} {asset_id}", exc_info=e)
+                failed.append(asset)
+                continue
+            if r is None:
+                no_updates.append(asset)
+            elif r:
+                updated.append(asset)
+            else:
+                failed.append(asset)
+        self.logger.info(f"💠 Completed update check for {group.unit_name}s. No updates: {len(no_updates)}. ✅ Updated: {len(updated)}. ❌ Failed: {len(failed)}")
+    
+    def update_all(self, dry: bool):
+        self.update_list(self.manifest.mods, ModsGroup(), dry)
+        self.update_list(self.manifest.plugins, PluginsGroup(), dry)
+        self.update_list(self.manifest.datapacks, DatapacksGroup(), dry)
+        self.update_list(self.manifest.customs, CustomsGroup(), dry)
+
 
 
 ROOT_REGISTRY = Registries()
@@ -1093,6 +1172,16 @@ DEFAULT_MANIFEST_PATHS = ["manifest.json", "manifest.yml",
                           "manifest.yaml", "manifest.json5", "manifest.jsonc"]
 
 
+def select_manifest_path(entered: Path | None) -> Path | None:
+    if entered is not None:
+        return entered
+    else:
+        for n in DEFAULT_MANIFEST_PATHS:
+            p = Path(n)
+            if p.is_file():
+                return p
+        return None
+
 @click.group()
 def main():
     pass
@@ -1127,25 +1216,16 @@ def main():
 )
 def install(manifest: Path | None, folder: Path, github_token: str | None, debug: bool):
     setup_logging(debug)
-    mfp: Path
-    if manifest is not None:
-        mfp = manifest
-    else:
-        for n in DEFAULT_MANIFEST_PATHS:
-            p = Path(n)
-            if p.is_file():
-                mfp = p
-                break
-        else:
-            click.echo("No manifest.json found or passed")
-            return
-
+    mfp = select_manifest_path(manifest)
+    if not mfp:
+        click.echo("No manifest.json found or passed")
+        return
     logger = logging.getLogger("Installer")
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
-    installer.prepare()
+    installer.prepare(True)
     installer.install_core()
     installer.install_mods()
     installer.install_plugins()
@@ -1176,6 +1256,50 @@ def schema(out: Path, pretty: bool):
     out.write_text(json.dumps(r, indent=2 if pretty else None))
     click.echo("Done")
 
+
+@main.command()
+@click.option(
+    "--manifest",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Path to the manifest file",
+)
+@click.option(
+    "--folder",
+    type=click.Path(path_type=Path),
+    default=Path(""),
+    help="Folder where server is located",
+)
+@click.option(
+    "--dry",
+    is_flag=True,
+    help="Dry mod. Checks for updates without installing them",
+)
+@click.option(
+    "--github-token",
+    type=str,
+    default=None,
+    help="GitHub token for github assets",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Debug logging switch",
+)
+def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | None, debug: bool):
+    setup_logging(debug)
+    mfp = select_manifest_path(manifest)
+    if not mfp:
+        click.echo("No manifest.json found or passed")
+        return
+    logger = logging.getLogger("Installer")
+    auth = Authorizaition(github=github_token)
+    mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
+    installer.logger.info(f"✅ Using manifest {mfp}")
+    installer.prepare(False)
+    installer.update_all(dry)
+    installer.shutdown()
 
 if __name__ == "__main__":
     main()
