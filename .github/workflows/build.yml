@@ -65,6 +65,7 @@ jobs:
           pip install -r mcsi/requirements.txt -t mcsi
       
       - name: Set version
+        shell: bash
         run: echo "VERSION_NAME=${{ inputs.version_name != '' && inputs.version_name || format('b.{0}', github.run_number) }}" >> $GITHUB_ENV
 
       - name: Build fat zipapp
