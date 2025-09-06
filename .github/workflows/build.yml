@@ -65,17 +65,15 @@ jobs:
           pip install -r mcsi/requirements.txt -t mcsi
       
       - name: Set version
-        id: version
-        run: echo "value=${{ inputs.version_name != '' && inputs.version_name || format('b.{0}', github.run_number) }}" >> $GITHUB_OUTPUT
-   
+        run: echo "VERSION_NAME=${{ inputs.version_name != '' && inputs.version_name || format('b.{0}', github.run_number) }}" >> $GITHUB_ENV
 
       - name: Build fat zipapp
         run: |
           mkdir -p out
-          python -m zipapp mcsi -o out/mcsi-${{ steps.version.outputs.value }}-fat-${{matrix.os_name}}.pyz -m main:main
+          python -m zipapp mcsi -o out/mcsi-${VERSION_NAME}-fat-${{matrix.os_name}}.pyz -m main:main
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MCSI-${{ steps.version.outputs.value }}-fat-${{ matrix.os_name }}
+          name: MCSI-${{ env.VERSION_NAME }}-fat-${{ matrix.os_name }}
           path: out/
