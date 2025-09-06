@@ -938,6 +938,7 @@ class UpdateResult(Enum):
     FAILED = 1
     UPDATED = 2
     UP_TO_DATE = 3
+    FOUND = 4
 
 
 class Installer:
@@ -1177,10 +1178,10 @@ class Installer:
         self.logger.info(f"💠 New update found for {group.unit_name} {asset_id}")
         if asset.is_latest() is False: # fixed version
             self.logger.debug(f"Skipping {group.unit_name} {asset_id} as it has fixed version")
-            return UpdateResult.SKIPPED
+            return UpdateResult.FOUND
         if dry:
             self.logger.debug("Dry run, do not installing update")
-            return UpdateResult.SKIPPED
+            return UpdateResult.FOUND
         self.cache.invalidate_asset(asset, reason=InvalidReason("outdated", "New version is found"))
         try:
             self.install(asset, group)
@@ -1220,7 +1221,8 @@ class Installer:
         up_to_date = sum((1 for r in results.values() if r == UpdateResult.UP_TO_DATE))
         updated = sum((1 for r in results.values() if r == UpdateResult.UPDATED))
         failed = sum((1 for r in results.values() if r == UpdateResult.FAILED))
-        self.logger.info(f"💠 Completed update check for {group.unit_name}s. ✅ No updates: {up_to_date}. ✅ Updated: {updated}. ❌ Failed: {failed}")
+        found = sum((1 for r in results.values() if r == UpdateResult.FOUND))
+        self.logger.info(f"✅ Completed update check for {group.unit_name}s.\n ✅ No updates: {up_to_date}.\n ✅ Updated: {updated} (found {found}).\n ❌ Failed: {failed}")
     
     def update_all(self, dry: bool):
         self.update_list(self.manifest.mods, ModsGroup(), dry)
