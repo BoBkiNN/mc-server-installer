@@ -696,11 +696,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
     def get_logger_name(self):
         return "Modrinth"
     
-    def download(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup) -> ModrinthData:
-        self.debug(f"Getting project {asset.project_id}")
-        project = assets.modrinth.get_project(asset.project_id)
-        if not project:
-            raise ValueError(f"Unknown project {asset.project_id}")
+    def get_version(self, assets: AssetInstaller, project: modrinth.Project, asset: ModrinthAsset):
         self.debug(f"Getting project versions..")
         game_versions = [] if asset.ignore_game_version else [assets.game_version]
         vers = assets.modrinth.get_versions(
@@ -722,6 +718,22 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
             filtered.append(ver)
         if len(filtered) == 0:
             raise ValueError("No valid versions found")
+        if asset.version == "latest":
+            return filtered[0]
+        # at this moment version is not latest and not an version id, so this is version_number
+        ver = next(
+            (v for v in filtered if v.version_number == asset.version), None)
+        if not ver:
+            raise ValueError(
+                f"Failed to find valid version with number {asset.version} out of {len(filtered)}")
+        return ver
+    
+    def download(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup) -> ModrinthData:
+        self.debug(f"Getting project {asset.project_id}")
+        project = assets.modrinth.get_project(asset.project_id)
+        if not project:
+            raise ValueError(f"Unknown project {asset.project_id}")
+        ver = self.get_version(assets, project, asset)
 
         folder = group.get_folder(asset)
 
@@ -737,29 +749,26 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
                 f"🌐 Downloading primary file {primary.filename} from version '{ver.name}'")
             self.download_file(assets.modrinth.session, str(primary.url), out)
             return [out]
-        if asset.version == "latest":
-            ver = filtered[0]
-            files = download_version(ver)
-            if files:
-                self.info(f"✅ Downloaded latest version {ver.name}")
-                return ModrinthData(ver, project, files=files)
-            else:
-                raise ValueError(
-                    f"Failed to download version {ver.name}. See errors above for details")
-        # at this moment version is not latest and not an version id, so this is version_number
-        ver = next(
-            (v for v in filtered if v.version_number == asset.version), None)
-        if not ver:
-            raise ValueError(
-                f"Failed to find valid version with number {asset.version} out of {len(filtered)}")
+        
         files = download_version(ver)
         if not files:
             raise ValueError(f"No valid files found in version {ver}")
-        self.info(f"✅ Downloaded {len(files)} files")
+        self.info(f"✅ Downloaded {len(files)} files from version {ver.name}")
         return ModrinthData(ver, project, files=files)
     
+    def supports_update_checking(self) -> bool:
+        return True
+    
     def has_update(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup, cached: ModrinthCache) -> UpdateStatus:
-        raise NotImplementedError
+        self.debug(f"Getting project {asset.project_id}")
+        project = assets.modrinth.get_project(asset.project_id)
+        if not project:
+            raise ValueError(f"Unknown project {asset.project_id}")
+        ver = self.get_version(assets, project, asset)
+        # maybe semver when possible?
+        if cached.version_id != ver.id:
+            return UpdateStatus.OUTDATED
+        return UpdateStatus.UP_TO_DATE
 
 
 class GithubLikeProvider(AssetProvider[AT, CT, DT]):
