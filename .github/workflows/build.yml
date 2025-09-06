@@ -7,6 +7,12 @@ on:
     branches: [ main ]
   workflow_dispatch:  # allow manual run
   workflow_call:
+    inputs:
+      version_name:
+        description: "Optional version name"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build:
@@ -18,16 +24,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Set build number
-        run: echo "BUILD_NUM=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+      - name: Set version
+        id: version
+        run: |
+          if [ -z "${{ inputs.version_name }}" ]; then
+            echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${{ inputs.version_name }}" >> $GITHUB_OUTPUT
+          fi
       - name: Pack app
         run: |
           mkdir -p out
-          python -m zipapp mcsi -o out/mcsi-${BUILD_NUM}.pyz -m main:main
+          python -m zipapp mcsi -o out/mcsi-${{ steps.version.outputs.value }}.pyz -m main:main
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MCSI-b.${{github.run_number}}
+          name: MCSI-${{ steps.version.outputs.value }}
           path: out/
     
   build-fat:
@@ -48,20 +60,26 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set build number
-        run: echo "BUILD_NUM=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
-
       - name: Install dependencies locally
         run: |
           pip install -r mcsi/requirements.txt -t mcsi
+      
+      - name: Set version
+        id: version
+        run: |
+          if [ -z "${{ inputs.version_name }}" ]; then
+            echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${{ inputs.version_name }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build fat zipapp
         run: |
           mkdir -p out
-          python -m zipapp mcsi -o out/mcsi-${BUILD_NUM}-fat-${{matrix.os_name}}.pyz -m main:main
+          python -m zipapp mcsi -o out/mcsi-${{ steps.version.outputs.value }}-fat-${{matrix.os_name}}.pyz -m main:main
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MCSI-b.${{github.run_number}}-fat-${{ matrix.os_name }}
+          name: MCSI-${{ steps.version.outputs.value }}-fat-${{ matrix.os_name }}
           path: out/
