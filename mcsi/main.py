@@ -558,6 +558,7 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
         if self._logger:
             return self._logger
         l = logging.getLogger(self.get_logger_name())
+        l.setLevel(logging.INFO) # inject debug mode
         self._logger = l
         return l
 
@@ -920,6 +921,7 @@ class Installer:
         self.manifest_path = manifest_path
         self.folder = server_folder
         self.auth = auth
+        self.debug = debug
         self.logger = logger
         self.session = requests.Session()
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
@@ -1028,8 +1030,9 @@ class Installer:
             self.folder) if not p.is_absolute() else p for p in data.files]
 
         if asset.actions:
-            exprs = ExpressionProcessor(
-                logging.getLogger("Expr#"+asset_id), self.folder)
+            logger = logging.getLogger("Expr#"+asset_id)
+            logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
+            exprs = ExpressionProcessor(logger, self.folder)
             exprs.process(asset, group, data)
 
         cache = data.create_cache()
@@ -1223,7 +1226,7 @@ LOG_FORMATTER = colorlog.ColoredFormatter(
 
 def setup_logging(debug: bool):
     logger = logging.getLogger()  # Root logger
-    logger.setLevel(logging.DEBUG if debug else logging.INFO)
+    # logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
     # Create console handler
     console_handler = colorlog.StreamHandler(sys.stdout)
@@ -1291,6 +1294,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
         click.echo("No manifest.json found or passed")
         return
     logger = logging.getLogger("Installer")
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
@@ -1363,6 +1367,7 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
         click.echo("No manifest.json found or passed")
         return
     logger = logging.getLogger("Installer")
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorizaition(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
