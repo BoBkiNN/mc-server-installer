@@ -1,6 +1,6 @@
 # Minecraft Server Installer
 
-This is an utility written in python that allows creating server manifests declaring plugins for easy share and install.
+This is an utility written in python that allows creating server manifests declaring plugins and other assets for easy share and install.
 
 **Go to**:
 * 🔧 [Installation, running, and usage](#installation-and-running)  
