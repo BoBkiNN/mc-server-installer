@@ -1327,13 +1327,14 @@ def select_manifest_path(entered: Path | None) -> Path | None:
 
 @click.group()
 def main():
+    """Minecraft Server Installer made by BoBkiNN"""
     pass
 
 
 # Install lifecycle:
 # Check cache -> download files -> do actions -> store cache
 
-@main.command()
+@main.command(help="Install server")
 @click.option(
     "--manifest",
     type=click.Path(path_type=Path),
@@ -1358,6 +1359,7 @@ def main():
     help="Debug logging switch",
 )
 def install(manifest: Path | None, folder: Path, github_token: str | None, debug: bool):
+    """Installs core and all assets by downloading them and executing actions"""
     setup_logging(debug)
     mfp = select_manifest_path(manifest)
     if not mfp:
@@ -1381,7 +1383,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
 # Update lifecycle:
 # Check cache -> check update -> if (new update) {invalidate cache -> download files -> do actions} -> store cache
 
-@main.command
+@main.command(help="Generate manifest schema")
 @click.option(
     "--out", "-o",
     type=click.Path(path_type=Path),
@@ -1394,6 +1396,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     help="Indent schema by 2 spaces",
 )
 def schema(out: Path, pretty: bool):
+    """Generates JSON schema for manifest and saves it"""
     click.echo(f"Generating schema to {out}")
     r = Manifest.model_json_schema(
         schema_generator=make_registry_schema_generator(ROOT_REGISTRY))
@@ -1401,7 +1404,7 @@ def schema(out: Path, pretty: bool):
     click.echo("Done")
 
 
-@main.command()
+@main.command(help="Update server")
 @click.option(
     "--manifest",
     type=click.Path(path_type=Path),
@@ -1431,6 +1434,7 @@ def schema(out: Path, pretty: bool):
     help="Debug logging switch",
 )
 def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | None, debug: bool):
+    """Checks cached assets for updates and installs new versions if dry mode disabled"""
     setup_logging(debug)
     mfp = select_manifest_path(manifest)
     if not mfp:
