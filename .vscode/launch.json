@@ -17,11 +17,11 @@
             "request": "launch",
             "module": "main",
             "args": [
+                "install",
                 "--manifest",
                 "../run/manifest.json5",
                 "--folder",
-                "../run",
-                "install"
+                "../run"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/mcsi"
