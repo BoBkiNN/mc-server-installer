@@ -790,16 +790,19 @@ class GithubLikeProvider(AssetProvider[AT, CT, DT]):
 
 class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubReleaseCache, GithubReleaseData]):
 
-    def download(self, assets: AssetInstaller, asset: GithubReleasesAsset, group: AssetsGroup) -> GithubReleaseData:
-        self.debug(f"Getting repository {asset.repository}")
-        repo = self.get_repo(assets, asset.repository)
-        version = asset.version
+    def get_release(self, repo: Repository, version: str):
         release: GitRelease
         if version == "latest":
             release = repo.get_latest_release()
         else:
             release = repo.get_release(version)
-        self.info(f"✅ Found release {release.title}")
+        return release
+
+    def download(self, assets: AssetInstaller, asset: GithubReleasesAsset, group: AssetsGroup) -> GithubReleaseData:
+        self.debug(f"Getting repository {asset.repository}")
+        repo = self.get_repo(assets, asset.repository)
+        release: GitRelease = self.get_release(repo, asset.version)
+        self.info(f"✅ Found release {release.title!r}")
         ls = release.get_assets()
         m = {a.name: a for a in ls}
         names = asset.get_file_selector(assets.registry).find_targets(list(m))
@@ -816,8 +819,18 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
         self.info(f"✅ Downloaded {len(files)} assets from release")
         return GithubReleaseData(repo, release, files=files)
     
+    def supports_update_checking(self) -> bool:
+        return True
+    
     def has_update(self, assets: AssetInstaller, asset: GithubReleasesAsset, group: AssetsGroup, cached: GithubReleaseCache) -> UpdateStatus:
-        raise NotImplementedError
+        self.debug(f"Getting repository {asset.repository}")
+        repo = self.get_repo(assets, asset.repository)
+        release: GitRelease = self.get_release(repo, asset.version)
+        self.info(f"✅ Found release {release.title!r}")
+        if release.tag_name != cached.tag:
+            return UpdateStatus.OUTDATED
+        else:
+            return UpdateStatus.UP_TO_DATE
 
 
 class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActionsCache, GithubActionsData]):
