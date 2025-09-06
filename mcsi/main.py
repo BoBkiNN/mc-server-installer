@@ -904,6 +904,12 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
             return UpdateStatus.UP_TO_DATE
 
 
+class UpdateResult(Enum):
+    SKIPPED = 0
+    FAILED = 1
+    UPDATED = 2
+    UP_TO_DATE = 3
+
 
 class Installer:
     def __init__(self, manifest: Manifest, manifest_path: Path,
@@ -1101,7 +1107,7 @@ class Installer:
         except Exception as e:
             raise ValueError(f"Exception checking update for {group.unit_name} {asset.resolve_asset_id()}") from e
     
-    def update_lifecycle(self, asset: Asset, group: AssetsGroup, dry: bool):
+    def update_lifecycle(self, asset: Asset, group: AssetsGroup, dry: bool) -> UpdateResult:
         """
         Returns True if successfully installed and False if not <br>
         Returns None if no updates available or dry run
@@ -1115,58 +1121,64 @@ class Installer:
             raise ValueError(f"Unknown provider {key!r}")
         if not provider.supports_update_checking():
             self.logger.debug(f"Provider {key!r} does not support update checking.")
-            return None
+            return UpdateResult.SKIPPED
         asset_id = asset.resolve_asset_id()
         asset_hash = asset.stable_hash()
         cached = self.cache.check_asset(asset_id, asset_hash) if asset.caching else None
         if not cached:
-            return None
+            return UpdateResult.SKIPPED
         self.logger.info(f"🔁 Checking {asset_id} for updates")
         status = self.check_update(asset, group, cached)
         if status != UpdateStatus.OUTDATED:
             self.logger.info(f"💠 No new updates for {asset_id}")
-            return None
+            return UpdateResult.UP_TO_DATE
         self.logger.info(f"💠 New update found for {group.unit_name} {asset_id}")
         if asset.is_latest() is False: # fixed version
             self.logger.debug(f"Skipping {group.unit_name} {asset_id} as it has fixed version")
-            return None
+            return UpdateResult.SKIPPED
         if dry:
             self.logger.debug("Dry run, do not installing update")
-            return None
+            return UpdateResult.SKIPPED
         self.cache.invalidate_asset(asset, reason=InvalidReason("outdated", "New version is found"))
         try:
             self.install(asset, group)
         except Exception as e:
             self.logger.error(f"❌ Failed to install update for {group.unit_name} {asset_id}", exc_info=e)
-            return False
+            return UpdateResult.FAILED
         self.cache.save()
-        return True
+        return UpdateResult.UPDATED
         
     def update_list(self, assets: Sequence[Asset], group: AssetsGroup, dry: bool):
-        self.logger.info(f"💠 Checking updates for {len(assets)} {group.unit_name}(s)")
-        updated: list[Asset] = []
-        failed: list[Asset] = []
-        no_updates: list[Asset] = []
+        filtered: list[Asset] = []
         for asset in assets:
             asset_id = asset.resolve_asset_id()
+            if not asset.caching:
+                self.logger.debug(f"Skipping asset {asset_id} as it does caching disabled")
+                continue
             if asset.is_latest() is None:
-                self.logger.debug(f"Skipping asset {asset_id} as it has fixed version")
-                no_updates.append(asset)
+                self.logger.debug(
+                    f"Skipping asset {asset_id} as it has fixed version")
+            filtered.append(asset)
+        self.logger.info(f"💠 Checking updates for {len(filtered)} {group.unit_name}(s)")
+        results: dict[str, UpdateResult] = {}
+
+        for asset in filtered:
+            asset_id = asset.resolve_asset_id()
+            if isinstance(asset, NoteAsset): 
+                results[asset_id] = UpdateResult.SKIPPED
                 continue
             try:
                 r = self.update_lifecycle(asset, group, dry)
             except Exception as e:
                 self.logger.error(
                     f"❌ Failed to complete update lifecycle for {group.unit_name} {asset_id}", exc_info=e)
-                failed.append(asset)
+                results[asset_id] = UpdateResult.FAILED
                 continue
-            if r is None:
-                no_updates.append(asset)
-            elif r:
-                updated.append(asset)
-            else:
-                failed.append(asset)
-        self.logger.info(f"💠 Completed update check for {group.unit_name}s. No updates: {len(no_updates)}. ✅ Updated: {len(updated)}. ❌ Failed: {len(failed)}")
+            results[asset_id] = r
+        up_to_date = sum((1 for r in results.values() if r == UpdateResult.UP_TO_DATE))
+        updated = sum((1 for r in results.values() if r == UpdateResult.UPDATED))
+        failed = sum((1 for r in results.values() if r == UpdateResult.FAILED))
+        self.logger.info(f"💠 Completed update check for {group.unit_name}s.✅ No updates: {up_to_date}. ✅ Updated: {updated}. ❌ Failed: {failed}")
     
     def update_all(self, dry: bool):
         self.update_list(self.manifest.mods, ModsGroup(), dry)
