@@ -142,11 +142,12 @@ class Asset(ABC, TypedModel):
     def resolve_asset_id(self) -> str:
         if self._asset_id:
             return self._asset_id
+        t = self.get_type()
         if self.asset_id:
             v = self.asset_id
         else:
             v = self.create_asset_id()
-        self._asset_id = v
+        self._asset_id = f"({v})@{t}"
         return v
 
     @abstractmethod

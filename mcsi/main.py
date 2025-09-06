@@ -50,6 +50,7 @@ class CacheStore:
     def save(self):
         if not self.dirty:
             return
+        self.cache.version = __version__
         self.cache.save(self.file, self.registries, self.debug)
         self.dirty = False
 
