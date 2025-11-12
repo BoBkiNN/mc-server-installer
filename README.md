@@ -152,3 +152,4 @@ Plans for new features and improvements in this project:
 - Hangar support
 - Check all assets ids for uniqueness
 - Variants that will switch assets
+- asset configurations with YML/JSON/TOML support
