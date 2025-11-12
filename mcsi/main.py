@@ -607,6 +607,7 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
         response = session.get(url, stream=True)
         response.raise_for_status()
         total_size = response.headers["Content-Length"]
+        self.logger.debug(f"Downloading {total_size} bytes to {out_path.resolve()}")
         with open(out_path, "wb") as f, tqdm.tqdm(
             total=int(total_size),
             unit="B",
