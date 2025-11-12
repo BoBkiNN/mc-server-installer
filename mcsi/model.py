@@ -131,6 +131,7 @@ class Asset(ABC, TypedModel):
     """List of actions to execute after download"""
     folder: Path | None = None
     """Used only in customs group""" # TODO replace this with Group(folder: id|Path)
+    if_: Expr = Field("", alias="if")
 
     _asset_id: str | None = None  # cache
     _file_selector: FileSelector | None = None # cache

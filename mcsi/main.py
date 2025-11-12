@@ -325,27 +325,44 @@ class ExpressionProcessor:
             else:
                 bs += part
         return bs
+    
+    def eval_if(self, key: str, if_code: Expr):
+        """
+        Executes a code string and returns True or False.
+
+        Integer return values are converted to boolean using `bool(v)`.
+
+        :param key: Key to description
+        :type key: str
+        :param if_code: Code to evaluate
+        :type if_code: Expr
+
+        :return: True if code returned True or any truthy value, False if code returned False, None if evaluation error occurred
+        :rtype: bool or None
+        """
+        v = self.eval(if_code, key, str(if_code))
+        if isinstance(v, ExceptionHolder):
+            self.logger.error(
+                "Failed to process if statement, see above errors for details")
+            return
+        if isinstance(v, bool):
+            b = v
+        elif isinstance(v, int):
+            b = bool(v)
+        elif isinstance(v, str):
+            b = True if v.lower() == "true" else False
+        else:
+            self.logger.warning(
+                f"If statement in {key} returned non-bool. Expected True of False")
+            b = True
+        return b
 
     def handle(self, key: str, action: BaseAction, data: DownloadData):
         # TODO return bool or enum stating error or ok
         if_code = action.if_
         if if_code:
-            v = self.eval(if_code, key+".if", str(if_code))
-            if isinstance(v, ExceptionHolder):
-                self.logger.error(
-                    "Failed to process if statement, see above errors for details")
-                return
-            if isinstance(v, bool):
-                b = v
-            elif isinstance(v, int):
-                b = bool(v)
-            elif isinstance(v, str):
-                b = True if v.lower() == "true" else False
-            else:
-                self.logger.warning(
-                    f"If statement in {key} returned non-bool. Expected True of False")
-                b = True
-            if not b:
+            b = self.eval_if(key+".if", if_code)
+            if not b: # False or None
                 return
         if isinstance(action, DummyAction):
             v = self.eval(action.expr, key+".expr", str(action.expr))
