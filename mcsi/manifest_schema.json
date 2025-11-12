@@ -102,6 +102,12 @@
           "description": "Used only in customs group",
           "title": "Folder"
         },
+        "if": {
+          "default": "",
+          "description": "Conditions for asset to be processed. If falsy value is returned, asset is completely skipped",
+          "title": "If",
+          "type": "string"
+        },
         "url": {
           "format": "uri",
           "maxLength": 2083,
@@ -243,6 +249,12 @@
           "description": "Used only in customs group",
           "title": "Folder"
         },
+        "if": {
+          "default": "",
+          "description": "Conditions for asset to be processed. If falsy value is returned, asset is completely skipped",
+          "title": "If",
+          "type": "string"
+        },
         "version": {
           "anyOf": [
             {
@@ -377,6 +389,12 @@
           "description": "Used only in customs group",
           "title": "Folder"
         },
+        "if": {
+          "default": "",
+          "description": "Conditions for asset to be processed. If falsy value is returned, asset is completely skipped",
+          "title": "If",
+          "type": "string"
+        },
         "version": {
           "anyOf": [
             {
@@ -485,6 +503,12 @@
           "default": null,
           "description": "Used only in customs group",
           "title": "Folder"
+        },
+        "if": {
+          "default": "",
+          "description": "Conditions for asset to be processed. If falsy value is returned, asset is completely skipped",
+          "title": "If",
+          "type": "string"
         },
         "version": {
           "anyOf": [
@@ -606,6 +630,12 @@
           "default": null,
           "description": "Used only in customs group",
           "title": "Folder"
+        },
+        "if": {
+          "default": "",
+          "description": "Conditions for asset to be processed. If falsy value is returned, asset is completely skipped",
+          "title": "If",
+          "type": "string"
         },
         "version": {
           "anyOf": [
@@ -754,6 +784,12 @@
           "default": null,
           "description": "Used only in customs group",
           "title": "Folder"
+        },
+        "if": {
+          "default": "",
+          "description": "Conditions for asset to be processed. If falsy value is returned, asset is completely skipped",
+          "title": "If",
+          "type": "string"
         },
         "type": {
           "const": "note",
@@ -1036,7 +1072,7 @@
   },
   "properties": {
     "version": {
-      "default": "2.1.0",
+      "default": "2.1.2",
       "title": "Version",
       "type": "string"
     },

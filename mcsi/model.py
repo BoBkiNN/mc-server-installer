@@ -132,6 +132,7 @@ class Asset(ABC, TypedModel):
     folder: Path | None = None
     """Used only in customs group""" # TODO replace this with Group(folder: id|Path)
     if_: Expr = Field("", alias="if")
+    """Conditions for asset to be processed. If falsy value is returned, asset is completely skipped"""
 
     _asset_id: str | None = None  # cache
     _file_selector: FileSelector | None = None # cache

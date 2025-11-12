@@ -1102,13 +1102,34 @@ class Installer:
         if asset.caching:
             self.cache.store_asset(result)
         return result, False
+    
+    def prepare_asset_list(self, ls: Sequence[Asset], group: AssetsGroup):
+        def filter_asset(a: Asset) -> bool:
+            asset_id = a.resolve_asset_id()
+            if_code = a.if_
+            ak = group.get_manifest_name()+"."+asset_id
+            if if_code:
+                logger = logging.getLogger("Expr#"+asset_id)
+                logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
+                exprs = ExpressionProcessor(logger, self.folder)
+                v = exprs.eval_if(ak+".if", if_code)
+                if v is False:
+                    return False
+            return True
+        return [a for a in ls if filter_asset(a)]
 
     def install_list(self, ls: Sequence[Asset], group: AssetsGroup):
         if not ls:
             return
+        o_total = len(ls)
+        ls = self.prepare_asset_list(ls, group)
         total = len(ls)
         entry_name = group.unit_name
-        self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
+        excluded = o_total - total
+        if excluded > 0:
+            self.logger.info(f"🔄 Installing {total} {entry_name}(s) ({excluded} excluded)")
+        else:
+            self.logger.info(f"🔄 Installing {total} {entry_name}(s)")
         failed: list[Asset] = []
         cached: list[Asset] = []
         for a in ls:
