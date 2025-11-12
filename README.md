@@ -151,3 +151,4 @@ Plans for new features and improvements in this project:
 - Provide example manifest
 - Hangar support
 - Check all assets ids for uniqueness
+- Variants that will switch assets
