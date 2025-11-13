@@ -936,7 +936,7 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
                 self.download_github_file(assets, artifact.archive_download_url, tmp)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 410:
-                    raise utils.FriendlyException("Artifact expired") from None
+                    raise utils.FriendlyException("Artifact expired")
                 else: raise e
             c = 0
             with ZipFile(tmp) as zf:
@@ -1103,7 +1103,7 @@ class Installer:
         try:
             data: DownloadData = self.download_asset(asset, group)
         except utils.FriendlyException as e:
-            raise utils.FriendlyException(f"Asset download failed: {e}") from None
+            raise utils.FriendlyException(f"Asset download failed: {e}")
         except Exception as e:
             raise ValueError(f"Exception downloading asset {asset_id}") from e
         data.files = [p.relative_to(
@@ -1159,7 +1159,11 @@ class Installer:
             try:
                 _, is_cached = self.install(a, group)
             except utils.FriendlyException as e:
-                self.logger.error(f"Exception installing asset {key!r}: {e}")
+                if self.debug:
+                    self.logger.error(
+                        f"Exception installing asset {key!r}: {e}", exc_info=e)
+                else:
+                    self.logger.error(f"Exception installing asset {key!r}: {e}")
                 failed.append(a)
                 continue
             except Exception as e:
