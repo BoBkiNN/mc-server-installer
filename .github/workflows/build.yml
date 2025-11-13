@@ -13,6 +13,10 @@ on:
         required: false
         type: boolean
         default: false
+    outputs:
+      version:
+        description: "Project version"
+        value: ${{ jobs.build.outputs.version }}
 
 jobs:
   build:
