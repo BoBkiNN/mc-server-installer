@@ -91,7 +91,7 @@ class CacheStore:
             self.reset()
             return
         if self.cache.version != __version__:
-            self.logger.warning("Cache is saved with different version. You might expect loading erros")
+            self.logger.warning("Cache is saved with different version. You might expect loading errors")
         if self.cache.mc_version and self.cache.mc_version != self.mf.mc_version:
             self.logger.info(
                 f"Resetting cache due to changed minecraft version {self.cache.mc_version} -> {self.mf.mc_version}")
