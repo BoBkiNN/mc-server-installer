@@ -734,7 +734,13 @@ class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData])
             else:
                 name = path.split("/")[-1]
         out = group.get_folder(asset) / name
-        self.download_file(requests.Session(), str(asset.url), out)
+        try:
+            self.download_file(requests.Session(), str(asset.url), out)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise utils.FriendlyException(
+                    f"File at {str(asset.url)} not found")
+            else: raise e
         return DownloadData(files=[out], primary_file=out)
     
     def has_update(self, assets: AssetInstaller, asset: DirectUrlAsset, group: AssetsGroup, cached: FilesCache) -> UpdateStatus:
