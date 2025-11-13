@@ -15,16 +15,16 @@
             "name": "main.py",
             "type": "debugpy",
             "request": "launch",
-            "module": "main",
+            "program": "../mcsi/main.py",
             "args": [
                 "install",
                 "--manifest",
-                "../run/manifest.json5",
+                "manifest.json5",
                 "--folder",
-                "../run"
+                "."
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/mcsi"
+            "cwd": "${workspaceFolder}/run"
         },
         {
             "name": "Generate schema",
