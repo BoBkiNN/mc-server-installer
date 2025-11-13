@@ -96,6 +96,7 @@ class RegistryUnion:
             registries = schema.get("metadata", {}).get("registries")
 
         if not registries:
+            # TODO: allow additional props in this case
             return {"type": "object", "title": f"RegistryUnion[{self.registry_key}]"}
         registry = registries.get_model_registry(self.registry_key)
         if not registry:
