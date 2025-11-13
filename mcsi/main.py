@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import sys
 
 # Support vendored dependencies for zipapp builds
