@@ -79,6 +79,7 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies locally
+        shell: bash
         run: |
           poetry install --no-root
           # Copy dependencies into mcsi folder for fat zip
