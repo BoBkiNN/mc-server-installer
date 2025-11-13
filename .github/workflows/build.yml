@@ -41,7 +41,7 @@ jobs:
         run: |
           read_version=$(poetry run sync-ver)
           if [ "${{ inputs.is_release }}" == "false" ]; then
-            echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
+            echo "value=${read_version}.b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
             echo "value=${read_version}" >> $GITHUB_OUTPUT
           fi
@@ -106,7 +106,7 @@ jobs:
         run: |
           read_version=$(poetry run sync-ver)
           if [ "${{ inputs.is_release }}" == "false" ]; then
-            echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
+            echo "value=${read_version}.b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
             echo "value=${read_version}" >> $GITHUB_OUTPUT
           fi
