@@ -102,13 +102,13 @@ class Registries(Registry[Registry]):
         self.registry_types: dict[str, type] = {}
 
     def create_model_registry(self, key: str, t: type[M]) -> ModelRegistry[M]:
-        reg = ModelRegistry[t](t)
+        reg = ModelRegistry(t)
         self.registry_types[key] = t
         self.register(key, reg)
         return reg
     
     def create_registry(self, key: str, t: type[T]) -> Registry[T]:
-        reg = Registry[t](t)
+        reg = Registry(t)
         self.registry_types[key] = t
         self.register(key, reg)
         return reg
