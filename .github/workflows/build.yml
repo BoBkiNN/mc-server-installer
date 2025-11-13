@@ -40,7 +40,7 @@ jobs:
         id: version
         run: |
           read_version=$(poetry run sync-ver)
-          if [ "${{ inputs.is_release }}" == "false" ]; then
+          if [ -z "${{ inputs.is_release }}" ] || [ "${{ inputs.is_release }}" = "false" ]; then
             echo "value=${read_version}.b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
             echo "value=${read_version}" >> $GITHUB_OUTPUT
@@ -103,11 +103,11 @@ jobs:
 
       - name: Set version
         id: version
+        shell: bash
         run: |
           poetry install --only dev
-          poetry run sync-ver
-          read_version=$(python -c "exec(open('mcsi/__version__.py').read()); print(__version__)")
-          if [ "${{ inputs.is_release }}" == "false" ]; then
+          read_version=$(poetry run sync-ver)
+          if [ -z "${{ inputs.is_release }}" ] || [ "${{ inputs.is_release }}" = "false" ]; then
             echo "value=${read_version}.b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
             echo "value=${read_version}" >> $GITHUB_OUTPUT
