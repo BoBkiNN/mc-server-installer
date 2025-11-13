@@ -94,7 +94,7 @@ class TemplateExpr(RootModel):
 
 class BaseAction(BaseModel):
     name: str = ""
-    if_: Expr = Field("", alias="if")
+    if_: Expr = Field(Expr(""), alias="if")
 
 
 class DummyAction(BaseAction):
@@ -131,7 +131,7 @@ class Asset(ABC, TypedModel):
     """List of actions to execute after download"""
     folder: Path | None = None
     """Used only in customs group""" # TODO replace this with Group(folder: id|Path)
-    if_: Expr = Field("", alias="if")
+    if_: Expr = Field(Expr(""), alias="if")
     """Conditions for asset to be processed. If falsy value is returned, asset is completely skipped"""
 
     _asset_id: str | None = None  # cache
