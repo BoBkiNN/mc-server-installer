@@ -76,3 +76,7 @@ def parse_template_parts(s: str, converter: Callable[[str], T], interpret_escape
             res.append(rest)
 
     return res
+
+class FriendlyException(Exception):
+    """Friendly exceptions are used to hide stacktraces from user."""
+    pass
