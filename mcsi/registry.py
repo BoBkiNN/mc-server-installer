@@ -147,7 +147,7 @@ def registry_from_info(data: dict, info: ValidationInfo, key: str = "type"):
     return registry, t
 
 
-def raise_unkown_type(field: str, input: str, keys: list[str]):
+def raise_unknown_type(field: str, input: str, keys: list[str]):
     raise ValidationError.from_exception_data(
         title="Unknown type",
         line_errors=[InitErrorDetails(
@@ -168,5 +168,5 @@ def get_registry_entry_from_info(registry_type: type[M], data: dict, info: Valid
         raise ValueError(f"Unknown registry for type {registry_type}")
     entry = reg.get(type)
     if entry is None:
-        raise_unkown_type(field, type, reg.keys())
+        raise_unknown_type(field, type, reg.keys())
     return entry  # type: ignore

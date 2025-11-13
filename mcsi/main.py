@@ -174,7 +174,7 @@ class CacheStore:
         return cached
 
 
-class Authorizaition(BaseModel):
+class Authorization(BaseModel):
     github: str | None = None
 
 
@@ -652,7 +652,7 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
             lsb = job.lastSuccessfulBuild
             if not lsb:
                 raise ValueError(
-                    f"No latest sucessfull build found for {job.name}")
+                    f"No latest successful build found for {job.name}")
             build = jm.Build.get_build(j, asset.job, lsb.number)
         else:
             build = jm.Build.get_build(j, asset.job, asset.version)
@@ -961,7 +961,7 @@ class UpdateResult(Enum):
 
 class Installer:
     def __init__(self, manifest: Manifest, manifest_path: Path,
-                 server_folder: Path, auth: Authorizaition, debug: bool,
+                 server_folder: Path, auth: Authorization, debug: bool,
                  registries: Registries, logger: logging.Logger) -> None:
         self.registries = registries
         self.manifest = manifest
@@ -1406,7 +1406,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
         return
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
-    auth = Authorizaition(github=github_token)
+    auth = Authorization(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
@@ -1481,7 +1481,7 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
         return
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
-    auth = Authorizaition(github=github_token)
+    auth = Authorization(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
     installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
