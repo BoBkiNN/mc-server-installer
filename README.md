@@ -1,14 +1,14 @@
 # Minecraft Server Installer
 
-This is an utility written in python that allows creating server manifests declaring plugins and other assets for easy share and install.
+This is a utility written in python that allows creating server manifests declaring plugins and other assets for easy share and install.
 
-**Go to**:
+**Navigation:**:
 * 🔧 [Installation, running, and usage](#installation-and-running)  
 * ✏ [Creating manifests](#writing-you-own-manifest)
 
 # Manifest
 
-Manifest is a text file where user describes plugin list using providers system.<br>
+A manifest is a text file in which the user describes the list of assets using providers system.<br>
 Manifest consists of several fields:
 - `mc_version`: Minecraft version that server uses, for example `1.21.8`
 - `core`: declaration of server core to use
@@ -18,11 +18,11 @@ Manifest consists of several fields:
 - `customs`: list of custom asset declarations. Folder where they will be placed is configured manually
 
 ### Asset
-An asset is unit of mod/plugin/datapack/custom.
+An asset is a unit representing a mod, plugin, datapack, or custom item.
 Each asset has a:
 - `type` that declares which provider to use
 - `file_selector` - key or object that defines which files are downloaded by provider
-- `asset_id` - and unique id of this asset, based on type-specific properties if not set manually
+- `asset_id` - a unique ID for this asset, automatically generated based on type-specific properties if not set manually
 - `caching` - Enables or disables caching for this asset
 - `actions` - List of actions to execute on downloaded data for correct installation using expression templates
 - `folder` - folder where asset will be downloaded. Used only by custom assets
@@ -43,7 +43,7 @@ Example asset declaring to download latest version of [ProtocolLib](https://gith
 ```
 
 ### Provider
-Provider is a some service or method used to perform downloading and update checking for asset.
+A provider is a service or method used to download assets and check for updates.
 
 Currently available providers:
 - `modrinth`: Downloads assets from https://modrinth.com
@@ -52,7 +52,7 @@ Currently available providers:
 - `url`: Downloads single file from some HTTP url
 - `jenkins`: Downloads assets from specified jenkins job
 
-Also there are special provider named `note`. It does not have any installation or update checking methods so its only purpose it to log some notice to end user, for example, telling manual installation instructions for plugin that cannot be downloaded using available providers.
+There is also a special provider called `note`. It does not have any installation or update checking methods so its only purpose it to log some notice to end user, for example, telling manual installation instructions for plugin that cannot be downloaded using available providers.
 
 ### Actions
 Action is an operation that runs after downloading file and can be used to perform some installation steps. It uses an expression templates to insert values into text.
@@ -67,7 +67,7 @@ For example, you can rename downloaded file:
 
 Above example is used in pair with `github` provider to rename `ProtocolLib.jar` to `ProtocolLib-<version>.jar`
 
-Each action has an optional `if` field which can contain python expression (dont misconcept with template expressions) that returns boolean value. When it specified, action will be run only if check if passed. For example, this action will log `Hello world!` if there are only single file downloaded:
+Each action has an optional `if` field which can contain python expression (don't confuse with template expressions) that returns boolean value. When it specified, action will be run only if check if passed. For example, this action will log `Hello world!` if there are only single file downloaded:
 ```json5
 {
     type: "dummy",
@@ -85,11 +85,11 @@ Currently, there are 3 action types which you can use:
 
 
 #### Template expressions
-Template expressions is flexible and simple way to insert values into text. Insipired by Github Actions, expressions are enclosed in `${{` and `}}` characters. When needed, you can escape expression by adding `\` before `$`.<br>
+Template expressions are a flexible and simple way to insert values into text. Inspired by Github Actions, expressions are enclosed in `${{` and `}}` characters. When needed, you can escape expression by adding `\` before `$`.<br>
 Expressions in brackets must be valid python code that gives some value that will be inserted into text.
 
 There are two variables that is exposed in template expressions used in `actions` list:  
-- `data` (`d`) - Is an object reflecting data downloaded by provider. Different providers have different data types. For example, `github` provider has `GithubReleaseData` which has `repo` and `release` fields which is objects from [PyGithub](https://pypi.org/project/PyGithub/) library. Also each data type has `files`, `primary_files` and `first_file` properties that contains downloaded file path(s) relative to server folder.
+- `data` (`d`) - is an object representing the data downloaded by the provider. Different providers have different data types. For example, `github` provider has `GithubReleaseData` which has `repo` and `release` fields which is objects from [PyGithub](https://pypi.org/project/PyGithub/) library. Also each data type has `files`, `primary_files` and `first_file` properties that contains downloaded file path(s) relative to server folder.
 - `asset` (`a`) - Is an object mirroring asset declaration that specified in manifest 
 
 # Installation and running
@@ -110,7 +110,7 @@ Currently there are 3 commands, each doing a set of actions:
 
 You can see usage for any command by adding `--help` argument
 
-Examle minimal command:  
+Example minimal command:  
 `python mcsi-2.1.2-win.pyz install --manifest myserver.json5`  
 This command above uses `myserver.json5` manifest file to install server into current folder.
 
@@ -118,7 +118,7 @@ This command above uses `myserver.json5` manifest file to install server into cu
 The primary requirements is knowledge of language in which manifest is written, this docs and having an IDE, like Visual Studio Code.
 
 ## Selecting language
-First step is to choose an language in what you will write manifest:
+The first step is to choose a language in which you will write the manifest:
 
 Currently there are several languages supported that can be used to write manifest:
 - `JSON`
@@ -129,7 +129,7 @@ Currently there are several languages supported that can be used to write manife
 Then you can create a document with that extension and open it in your IDE
 
 ## Attaching schema
-Schema is description of document which used by IDE to provide you documentation on available fields, values and options
+A schema is a description of the document used by the IDE to provide you documentation on available fields, values and options
 
 To attach a schema you must find the link to `manifest_schema` and insert it into document in place supported by your IDE. The most common way is using JSON-like language:
 ```json5
@@ -140,10 +140,10 @@ To attach a schema you must find the link to `manifest_schema` and insert it int
 ```
 
 ## Actual writing
-Now, when you attached a schema, you can use IDE suggestions to fill you manifest
+Now, once you have attached a schema, you can use IDE suggestions to fill you manifest
 
 # TODO
-Plans for new features and improvements in this project:
+Planned features and improvements for this project:
 - Move action types to registry
 - Improve and structurize core installation logic
 - Better way of passing authorization data and using it in assets
