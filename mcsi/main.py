@@ -1,6 +1,8 @@
 import os
 import sys
 
+from model import DummyAction, RenameFile, UnzipFile
+
 # Support vendored dependencies for zipapp builds
 VENDOR_PATH = os.path.join(os.path.dirname(__file__), "_vendor")
 if os.path.isdir(VENDOR_PATH) and VENDOR_PATH not in sys.path:
@@ -269,9 +271,10 @@ class JenkinsData(DownloadData):
 
 
 class ExpressionProcessor:
-    def __init__(self, logger: logging.Logger, folder: Path) -> None:
+    def __init__(self, logger: logging.Logger, folder: Path, registries: Registries) -> None:
         self.logger = logger
         self.folder = folder
+        self.registries = registries
         self.intpr = Interpreter(minimal=True)
 
     def log_error(self, error: ExceptionHolder, expr: Expr, source_key: str, source_text: str):
@@ -369,44 +372,14 @@ class ExpressionProcessor:
             b = self.eval_if(key+".if", if_code)
             if not b: # False or None
                 return
-        if isinstance(action, DummyAction):
-            v = self.eval(action.expr, key+".expr", str(action.expr))
-            if isinstance(v, ExceptionHolder):
-                self.logger.error(
-                    "Failed to process expression, see above errors for details")
-                return
-            self.logger.info(f"Dummy expression at {key} returned {v}")
-        elif isinstance(action, RenameFile):
-            frp = data.primary
-            if not frp:
-                self.logger.error("No files to rename")
-                return
-            to = self.eval_template(action.to, key+".to", str(action.to))
-            if isinstance(to, ExceptionHolder):
-                return
-            top = frp.with_name(to)
-            if top.is_file():
-                os.remove((self.folder / top).resolve())
-            frp.rename(top)
-            data.primary = top
-            self.logger.info(f"✅ Renamed file from {frp} to {top}")
-        elif isinstance(action, UnzipFile):
-            if action.folder.root:
-                folder = self.eval_template(
-                    action.folder, key+".folder", action.folder.root)
-                if isinstance(folder, ExceptionHolder):
-                    return
-            else:
-                pf = data.primary.parent
-                if pf.is_absolute():
-                    folder = pf
-                else:
-                    folder = self.folder / data.primary.parent
-            with ZipFile(self.folder / data.primary, "r") as zip_ref:
-                zip_ref.extractall(folder)
-            self.logger.info(f"✅ Unzipped {data.primary} into {folder}")
-        else:
-            raise ValueError(f"Unknown action {type(action)}")
+        action_type = action.get_type()
+        handlers = self.registries.get_registry(ActionHandler)
+        if not handlers:
+            raise ValueError("Failed to find ActionHandler registry")
+        handler = handlers.get(action_type)
+        if handler is None:
+            raise ValueError(f"Failed to find provider for action {action_type!r}")
+        handler.handle(self, key, action, data)
 
     def process(self, asset: Asset, group: "AssetsGroup", data: DownloadData):
         ls = asset.actions
@@ -427,6 +400,60 @@ class ExpressionProcessor:
                 self.logger.error(
                     f"Failed to handle action {type(a)} at {key}", exc_info=e)
 
+
+ACTION = TypeVar("ACTION", bound=BaseAction)
+
+class ActionHandler(ABC, Generic[ACTION]):
+    @abstractmethod
+    def handle(self, proc: ExpressionProcessor, key: str, action: ACTION, data: DownloadData) -> bool:
+        ...
+
+class DummyActionHandler(ActionHandler[DummyAction]):
+    def handle(self, proc: ExpressionProcessor, key: str, action: DummyAction, data: DownloadData) -> bool:
+        v = proc.eval(action.expr, key+".expr", str(action.expr))
+        if isinstance(v, ExceptionHolder):
+            proc.logger.error(
+                "Failed to process expression, see above errors for details")
+            return False
+        proc.logger.info(f"Dummy expression at {key} returned {v}")
+        return True
+
+
+class RenameActionHandler(ActionHandler[RenameFile]):
+    def handle(self, proc: ExpressionProcessor, key: str, action: RenameFile, data: DownloadData) -> bool:
+        frp = data.primary
+        if not frp:
+            proc.logger.error("No files to rename")
+            return False
+        to = proc.eval_template(action.to, key+".to", str(action.to))
+        if isinstance(to, ExceptionHolder):
+            return False
+        top = frp.with_name(to)
+        if top.is_file():
+            os.remove((proc.folder / top).resolve())
+        frp.rename(top)
+        data.primary = top
+        proc.logger.info(f"✅ Renamed file from {frp} to {top}")
+        return True
+
+
+class UnzipActionHandler(ActionHandler[UnzipFile]):
+    def handle(self, proc: ExpressionProcessor, key: str, action: UnzipFile, data: DownloadData) -> bool:
+        if action.folder.root:
+            folder = proc.eval_template(
+                action.folder, key+".folder", action.folder.root)
+            if isinstance(folder, ExceptionHolder):
+                return False
+        else:
+            pf = data.primary.parent
+            if pf.is_absolute():
+                folder = pf
+            else:
+                folder = proc.folder / data.primary.parent
+        with ZipFile(proc.folder / data.primary, "r") as zip_ref:
+            zip_ref.extractall(folder)
+        proc.logger.info(f"✅ Unzipped {data.primary} into {folder}")
+        return True
 
 class AssetsGroup(ABC):
     @abstractmethod
@@ -1112,7 +1139,7 @@ class Installer:
         if asset.actions:
             logger = logging.getLogger("Expr#"+asset_id)
             logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
-            exprs = ExpressionProcessor(logger, self.folder)
+            exprs = ExpressionProcessor(logger, self.folder, self.registries)
             exprs.process(asset, group, data)
 
         cache = data.create_cache()
@@ -1129,7 +1156,7 @@ class Installer:
             if if_code:
                 logger = logging.getLogger("Expr#"+asset_id)
                 logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
-                exprs = ExpressionProcessor(logger, self.folder)
+                exprs = ExpressionProcessor(logger, self.folder, self.registries)
                 v = exprs.eval_if(ak+".if", if_code)
                 if v is False:
                     return False
@@ -1347,6 +1374,14 @@ PROVIDERS.register("url", DirectUrlProvider())
 PROVIDERS.register("modrinth", ModrinthProvider())
 PROVIDERS.register("github", GithubReleasesProvider())
 PROVIDERS.register("github-actions", GithubActionsProvider())
+
+ACTIONS = ROOT_REGISTRY.create_model_registry("actions", BaseAction)
+ACTIONS.register_models(DummyAction, RenameFile, UnzipFile)
+
+ACTION_HANDLERS = ROOT_REGISTRY.create_registry("action_handlers", ActionHandler)
+ACTION_HANDLERS.register("dummy", DummyActionHandler())
+ACTION_HANDLERS.register("rename", RenameActionHandler())
+ACTION_HANDLERS.register("unzip", UnzipActionHandler())
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
     '%(log_color)s[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',

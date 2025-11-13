@@ -64,25 +64,8 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "discriminator": {
-              "mapping": {
-                "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile",
-                "unzip": "#/$defs/UnzipFile"
-              },
-              "propertyName": "type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/DummyAction"
-              },
-              {
-                "$ref": "#/$defs/RenameFile"
-              },
-              {
-                "$ref": "#/$defs/UnzipFile"
-              }
-            ]
+            "$ref": "#/$defs/RegistryUnion__actions",
+            "title": "ActionUnion"
           },
           "title": "Actions",
           "type": "array"
@@ -207,25 +190,8 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "discriminator": {
-              "mapping": {
-                "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile",
-                "unzip": "#/$defs/UnzipFile"
-              },
-              "propertyName": "type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/DummyAction"
-              },
-              {
-                "$ref": "#/$defs/RenameFile"
-              },
-              {
-                "$ref": "#/$defs/UnzipFile"
-              }
-            ]
+            "$ref": "#/$defs/RegistryUnion__actions",
+            "title": "ActionUnion"
           },
           "title": "Actions",
           "type": "array"
@@ -343,25 +309,8 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "discriminator": {
-              "mapping": {
-                "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile",
-                "unzip": "#/$defs/UnzipFile"
-              },
-              "propertyName": "type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/DummyAction"
-              },
-              {
-                "$ref": "#/$defs/RenameFile"
-              },
-              {
-                "$ref": "#/$defs/UnzipFile"
-              }
-            ]
+            "$ref": "#/$defs/RegistryUnion__actions",
+            "title": "ActionUnion"
           },
           "title": "Actions",
           "type": "array"
@@ -454,25 +403,8 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "discriminator": {
-              "mapping": {
-                "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile",
-                "unzip": "#/$defs/UnzipFile"
-              },
-              "propertyName": "type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/DummyAction"
-              },
-              {
-                "$ref": "#/$defs/RenameFile"
-              },
-              {
-                "$ref": "#/$defs/UnzipFile"
-              }
-            ]
+            "$ref": "#/$defs/RegistryUnion__actions",
+            "title": "ActionUnion"
           },
           "title": "Actions",
           "type": "array"
@@ -577,25 +509,8 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "discriminator": {
-              "mapping": {
-                "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile",
-                "unzip": "#/$defs/UnzipFile"
-              },
-              "propertyName": "type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/DummyAction"
-              },
-              {
-                "$ref": "#/$defs/RenameFile"
-              },
-              {
-                "$ref": "#/$defs/UnzipFile"
-              }
-            ]
+            "$ref": "#/$defs/RegistryUnion__actions",
+            "title": "ActionUnion"
           },
           "title": "Actions",
           "type": "array"
@@ -727,25 +642,8 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "discriminator": {
-              "mapping": {
-                "dummy": "#/$defs/DummyAction",
-                "rename": "#/$defs/RenameFile",
-                "unzip": "#/$defs/UnzipFile"
-              },
-              "propertyName": "type"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/$defs/DummyAction"
-              },
-              {
-                "$ref": "#/$defs/RenameFile"
-              },
-              {
-                "$ref": "#/$defs/UnzipFile"
-              }
-            ]
+            "$ref": "#/$defs/RegistryUnion__actions",
+            "title": "ActionUnion"
           },
           "title": "Actions",
           "type": "array"
@@ -884,6 +782,27 @@
         "pattern"
       ],
       "type": "string"
+    },
+    "RegistryUnion__actions": {
+      "discriminator": {
+        "mapping": {
+          "dummy": "#/$defs/DummyAction",
+          "rename": "#/$defs/RenameFile",
+          "unzip": "#/$defs/UnzipFile"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DummyAction"
+        },
+        {
+          "$ref": "#/$defs/RenameFile"
+        },
+        {
+          "$ref": "#/$defs/UnzipFile"
+        }
+      ]
     },
     "RegistryUnion__assets": {
       "discriminator": {

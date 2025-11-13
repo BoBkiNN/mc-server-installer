@@ -92,7 +92,7 @@ class TemplateExpr(RootModel):
 #          print(", ".join([str(ord(c)) for c in t]))
 
 
-class BaseAction(BaseModel):
+class BaseAction(ABC, TypedModel):
     name: str = ""
     if_: Expr = Field(Expr(""), alias="if")
 
@@ -115,10 +115,8 @@ class UnzipFile(BaseAction):
     """Target folder. If not set, then folder where downloaded file is used"""
 
 
-Action = Annotated[
-    Union[DummyAction, RenameFile, UnzipFile],
-    Field(discriminator="type"),
-]
+ActionUnion: TypeAlias = Annotated[BaseAction, RegistryUnion(
+    "actions"), Field(title="ActionUnion")]
 
 class Asset(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -127,7 +125,7 @@ class Asset(ABC, TypedModel):
     asset_id: str | None = None
     """Asset id override"""
     caching: bool = True
-    actions: list[Action] = []
+    actions: list[ActionUnion] = []
     """List of actions to execute after download"""
     folder: Path | None = None
     """Used only in customs group""" # TODO replace this with Group(folder: id|Path)
