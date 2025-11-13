@@ -92,12 +92,10 @@ jobs:
       - name: Vendor dependencies
         shell: bash
         run: |
+          poetry self add poetry-plugin-export
+          poetry export --without-hashes --format=requirements.txt > requirements-poetry.txt
           mkdir -p mcsi/_vendor
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            cp -r "$(poetry env info --path)/Lib/site-packages/"* mcsi/_vendor/
-          else
-            cp -r "$(poetry env info --path)/lib/python3.12/site-packages/"* mcsi/_vendor/
-          fi
+          pip install -r requirements-poetry.txt --target mcsi/_vendor
 
       - name: Set version
         shell: bash
