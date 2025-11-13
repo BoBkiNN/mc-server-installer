@@ -1,4 +1,3 @@
-import logging
 import os
 import sys
 
@@ -8,6 +7,7 @@ if os.path.isdir(VENDOR_PATH) and VENDOR_PATH not in sys.path:
     sys.path.insert(0, VENDOR_PATH)
 
 
+import logging
 import time
 import uuid
 from dataclasses import dataclass
@@ -18,11 +18,11 @@ import click
 import colorlog
 import jenkins
 import jenkins_models as jm
-from model import Asset, DirectUrlAsset, FilesCache, GithubActionsAsset, GithubReleaseCache, GithubReleasesAsset, JenkinsAsset, JenkinsCache, ModrinthAsset, ModrinthCache, Path
 import modrinth
 import papermc_fill as papermc
 import requests
 import tqdm
+from __version__ import __version__
 from asteval import Interpreter
 from asteval.astutils import ExceptionHolder
 from github import Auth, Github, UnknownObjectException
@@ -33,7 +33,6 @@ from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
 from model import *
 from regunion import make_registry_schema_generator
-from __version__ import __version__
 
 
 def millis():
