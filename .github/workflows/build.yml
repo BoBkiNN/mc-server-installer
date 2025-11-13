@@ -8,15 +8,17 @@ on:
   workflow_dispatch:  # allow manual run
   workflow_call:
     inputs:
-      version_name:
-        description: "Optional version name"
+      is_release:
+        description: "Version type"
         required: false
-        type: string
-        default: ""
+        type: boolean
+        default: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,10 +39,11 @@ jobs:
       - name: Set version
         id: version
         run: |
-          if [ -z "${{ inputs.version_name }}" ]; then
+          read_version=$(poetry run sync-ver)
+          if [ "${{ inputs.is_release }}" == "false" ]; then
             echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
-            echo "value=${{ inputs.version_name }}" >> $GITHUB_OUTPUT
+            echo "value=${read_version}" >> $GITHUB_OUTPUT
           fi
 
       - name: Pack app
@@ -63,7 +66,8 @@ jobs:
             os_name: linux
           - os: windows-latest
             os_name: win
-
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,22 +102,23 @@ jobs:
           pip install -r requirements-poetry.txt --target mcsi/_vendor
 
       - name: Set version
-        shell: bash
+        id: version
         run: |
-          if [ -z "${{ inputs.version_name }}" ]; then
-            echo "VERSION_NAME=b.${{ github.run_number }}" >> $GITHUB_ENV
+          read_version=$(poetry run sync-ver)
+          if [ "${{ inputs.is_release }}" == "false" ]; then
+            echo "value=b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
-            echo "VERSION_NAME=${{ inputs.version_name }}" >> $GITHUB_ENV
+            echo "value=${read_version}" >> $GITHUB_OUTPUT
           fi
 
       - name: Build fat zipapp
         shell: bash
         run: |
           mkdir -p out
-          poetry run python -m zipapp mcsi -o out/mcsi-${VERSION_NAME}-fat-${{matrix.os_name}}.pyz -m main:main
+          poetry run python -m zipapp mcsi -o out/mcsi-${{ steps.version.outputs.value }}-fat-${{matrix.os_name}}.pyz -m main:main
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MCSI-${{ env.VERSION_NAME }}-fat-${{ matrix.os_name }}
+          name: MCSI-${{ steps.version.outputs.value }}-fat-${{ matrix.os_name }}
           path: out/

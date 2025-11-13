@@ -2,11 +2,6 @@ name: Prepare release
 
 on:
   workflow_dispatch:
-    inputs:
-      version_name:
-        description: "Version"
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -15,7 +10,7 @@ jobs:
   build:
     uses: ./.github/workflows/build.yml
     with:
-      version_name: ${{ inputs.version_name }}
+      is_release: true
 
   release:
     runs-on: ubuntu-latest
@@ -43,7 +38,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          tag_name: ${{ inputs.version_name }}
+          tag_name: ${{ needs.build.outputs.version }}
           files: release_files/**
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
