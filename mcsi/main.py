@@ -2,6 +2,13 @@ import logging
 import os
 import re
 import sys
+
+# Support vendored dependencies for zipapp builds
+VENDOR_PATH = os.path.join(os.path.dirname(__file__), "_vendor")
+if os.path.isdir(VENDOR_PATH) and VENDOR_PATH not in sys.path:
+    sys.path.insert(0, VENDOR_PATH)
+
+
 import time
 import uuid
 from dataclasses import dataclass

@@ -20,10 +20,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --no-root
+
       - name: Set version
         id: version
         run: |
@@ -32,16 +42,18 @@ jobs:
           else
             echo "value=${{ inputs.version_name }}" >> $GITHUB_OUTPUT
           fi
+
       - name: Pack app
         run: |
           mkdir -p out
-          python -m zipapp mcsi -o out/mcsi-${{ steps.version.outputs.value }}.pyz -m main:main
+          poetry run python -m zipapp mcsi -o out/mcsi-${{ steps.version.outputs.value }}.pyz -m main:main
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: MCSI-${{ steps.version.outputs.value }}
           path: out/
-    
+
   build-fat:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -51,6 +63,7 @@ jobs:
             os_name: linux
           - os: windows-latest
             os_name: win
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,19 +73,32 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install dependencies locally
         run: |
-          pip install -r mcsi/requirements.txt -t mcsi
-      
+          poetry install --no-root
+          # Copy dependencies into mcsi folder for fat zip
+          mkdir -p mcsi/_vendor
+          cp -r $(poetry env info --path)/lib/python3.12/site-packages/* mcsi/_vendor/
+
       - name: Set version
         shell: bash
-        run: echo "VERSION_NAME=${{ inputs.version_name != '' && inputs.version_name || format('b.{0}', github.run_number) }}" >> $GITHUB_ENV
+        run: |
+          if [ -z "${{ inputs.version_name }}" ]; then
+            echo "VERSION_NAME=b.${{ github.run_number }}" >> $GITHUB_ENV
+          else
+            echo "VERSION_NAME=${{ inputs.version_name }}" >> $GITHUB_ENV
+          fi
 
       - name: Build fat zipapp
         shell: bash
         run: |
           mkdir -p out
-          python -m zipapp mcsi -o out/mcsi-${VERSION_NAME}-fat-${{matrix.os_name}}.pyz -m main:main
+          poetry run python -m zipapp mcsi -o out/mcsi-${VERSION_NAME}-fat-${{matrix.os_name}}.pyz -m main:main
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
