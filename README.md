@@ -153,4 +153,3 @@ Planned features and improvements for this project:
 - Check all assets ids for uniqueness
 - Variants that will switch assets
 - asset configurations with YML/JSON/TOML support
-- use poetry instead of requirements.txt
