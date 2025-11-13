@@ -89,13 +89,15 @@ jobs:
       - name: Check Poetry installation
         run: poetry --version
 
-      - name: Install dependencies locally
+      - name: Vendor dependencies
         shell: bash
         run: |
-          poetry install --no-root
-          # Copy dependencies into mcsi folder for fat zip
           mkdir -p mcsi/_vendor
-          cp -r $(poetry env info --path)/lib/python3.12/site-packages/* mcsi/_vendor/
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            cp -r "$(poetry env info --path)/Lib/site-packages/"* mcsi/_vendor/
+          else
+            cp -r "$(poetry env info --path)/lib/python3.12/site-packages/"* mcsi/_vendor/
+          fi
 
       - name: Set version
         shell: bash
