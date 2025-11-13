@@ -104,7 +104,9 @@ jobs:
       - name: Set version
         id: version
         run: |
-          read_version=$(poetry run sync-ver)
+          poetry run pip install toml
+          poetry run python -m mcsi.scripts.write_version
+          read_version=$(python -c "exec(open('mcsi/__version__.py').read()); print(__version__)")
           if [ "${{ inputs.is_release }}" == "false" ]; then
             echo "value=${read_version}.b.${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
