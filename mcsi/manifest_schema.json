@@ -4,9 +4,6 @@
       "properties": {
         "type": {
           "const": "all",
-          "enum": [
-            "all"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -33,10 +30,12 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors"
+              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors"
+              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "title": "FileSelectorUnion"
             }
           ],
           "default": "all",
@@ -129,9 +128,6 @@
         },
         "type": {
           "const": "url",
-          "enum": [
-            "url"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -157,9 +153,6 @@
         },
         "type": {
           "const": "dummy",
-          "enum": [
-            "dummy"
-          ],
           "title": "Type",
           "type": "string"
         },
@@ -181,10 +174,12 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors"
+              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors"
+              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "title": "FileSelectorUnion"
             }
           ],
           "default": "simple-jar",
@@ -262,9 +257,6 @@
             },
             {
               "const": "latest",
-              "enum": [
-                "latest"
-              ],
               "type": "string"
             }
           ],
@@ -299,9 +291,6 @@
         },
         "type": {
           "const": "github-actions",
-          "enum": [
-            "github-actions"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -321,10 +310,12 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors"
+              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors"
+              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "title": "FileSelectorUnion"
             }
           ],
           "default": "simple-jar",
@@ -399,9 +390,6 @@
           "anyOf": [
             {
               "const": "latest",
-              "enum": [
-                "latest"
-              ],
               "type": "string"
             },
             {
@@ -416,9 +404,6 @@
         },
         "type": {
           "const": "github",
-          "enum": [
-            "github"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -436,10 +421,12 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors"
+              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors"
+              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "title": "FileSelectorUnion"
             }
           ],
           "default": "simple-jar",
@@ -514,9 +501,6 @@
           "anyOf": [
             {
               "const": "latest",
-              "enum": [
-                "latest"
-              ],
               "type": "string"
             },
             {
@@ -540,9 +524,6 @@
         },
         "type": {
           "const": "jenkins",
-          "enum": [
-            "jenkins"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -562,10 +543,12 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors"
+              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors"
+              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "title": "FileSelectorUnion"
             }
           ],
           "default": "all",
@@ -641,9 +624,6 @@
           "anyOf": [
             {
               "const": "latest",
-              "enum": [
-                "latest"
-              ],
               "type": "string"
             },
             {
@@ -695,9 +675,6 @@
         },
         "type": {
           "const": "modrinth",
-          "enum": [
-            "modrinth"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -716,10 +693,12 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors"
+              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors"
+              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "title": "FileSelectorUnion"
             }
           ],
           "default": "all",
@@ -793,9 +772,6 @@
         },
         "type": {
           "const": "note",
-          "enum": [
-            "note"
-          ],
           "title": "Type",
           "type": "string"
         },
@@ -827,9 +803,6 @@
         },
         "type": {
           "const": "paper",
-          "enum": [
-            "paper"
-          ],
           "title": "Type",
           "type": "string"
         },
@@ -873,9 +846,6 @@
       "properties": {
         "type": {
           "const": "pattern",
-          "enum": [
-            "pattern"
-          ],
           "title": "Type",
           "type": "string"
         },
@@ -888,16 +858,10 @@
           "anyOf": [
             {
               "const": "full",
-              "enum": [
-                "full"
-              ],
               "type": "string"
             },
             {
               "const": "search",
-              "enum": [
-                "search"
-              ],
               "type": "string"
             }
           ],
@@ -990,9 +954,6 @@
         },
         "type": {
           "const": "rename",
-          "enum": [
-            "rename"
-          ],
           "title": "Type",
           "type": "string"
         },
@@ -1011,9 +972,6 @@
       "properties": {
         "type": {
           "const": "simple-jar",
-          "enum": [
-            "simple-jar"
-          ],
           "title": "Type",
           "type": "string"
         }
@@ -1043,9 +1001,6 @@
         },
         "type": {
           "const": "unzip",
-          "enum": [
-            "unzip"
-          ],
           "title": "Type",
           "type": "string"
         },
@@ -1097,7 +1052,8 @@
     "mods": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets"
+        "$ref": "#/$defs/RegistryUnion__assets",
+        "title": "Asset"
       },
       "title": "Mods",
       "type": "array"
@@ -1105,7 +1061,8 @@
     "plugins": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets"
+        "$ref": "#/$defs/RegistryUnion__assets",
+        "title": "Asset"
       },
       "title": "Plugins",
       "type": "array"
@@ -1113,7 +1070,8 @@
     "datapacks": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets"
+        "$ref": "#/$defs/RegistryUnion__assets",
+        "title": "Asset"
       },
       "title": "Datapacks",
       "type": "array"
@@ -1121,7 +1079,8 @@
     "customs": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets"
+        "$ref": "#/$defs/RegistryUnion__assets",
+        "title": "Asset"
       },
       "title": "Customs",
       "type": "array"
