@@ -1,4 +1,5 @@
 from typing import Annotated, Any, Type
+from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
@@ -7,10 +8,11 @@ from pydantic._internal._mock_val_ser import MockCoreSchema
 from registry import *
 
 
-class RegistriesGenerateJsonSchema(GenerateJsonSchema):
+class RegistriesGenerateJsonSchema(GenerateJsonSchema, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    @abstractmethod
     def get_registries(self) -> Registries:
         ...
     
