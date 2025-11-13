@@ -1551,5 +1551,19 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
     installer.update_all(dry)
     installer.shutdown()
 
+
+@main.command(help="Dump registries")
+@click.option(
+    "--out",
+    type=click.Path(path_type=Path, dir_okay=False),
+    default=Path("registries.json"),
+    help="Output file",
+)
+def dump(out: Path):
+    d = {}
+    ROOT_REGISTRY.dump(d)
+    out.write_text(json.dumps(d, indent=2), "utf-8")
+    click.echo(f"Registries dumped to {out}")
+
 if __name__ == "__main__":
     main()

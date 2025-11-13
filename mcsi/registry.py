@@ -41,6 +41,20 @@ class Registry(Generic[T]):
         cls = self.registry_type
         fqn = f"{cls.__module__}.{cls.__qualname__}"
         return f"Registry<{fqn}>({self.size()} entries)"
+    
+    def dump_entry(self, entry: T) -> Any:
+        return str(entry)
+    
+    def dump(self, to: dict[str, Any]):
+        cls = self.registry_type
+        fqn = f"{cls.__module__}.{cls.__qualname__}"
+        to["entry_type"] = fqn
+        to["type"] = "default"
+        to["size"] = self.size()
+        entries: dict[str, Any] = {}
+        for key, entry in self.all().items():
+            entries[key] = self.dump_entry(entry)
+        to["entries"] = entries
 
 
 M = TypeVar("M", bound=BaseModel)
@@ -94,6 +108,18 @@ class ModelRegistry(Generic[M], Registry[type[M]]):
     def register_models(self, *args: type[M], discriminator: str = "type"):
         for m in args:
             self.register_model(m, discriminator)
+    
+    def dump_entry(self, entry: type[M]) -> Any:
+        fqn = f"{entry.__module__}.{entry.__qualname__}"
+        fields = [name for name in entry.model_fields]
+        return {
+            "type": fqn,
+            "fields": fields
+        }
+    
+    def dump(self, to: dict[str, Any]):
+        super().dump(to)
+        to["type"] = "model"
 
 
 class Registries(Registry[Registry]):
@@ -127,6 +153,15 @@ class Registries(Registry[Registry]):
             return reg
         else:
             return None
+    
+    def dump_entry(self, entry: Registry) -> Any:
+        d = {}
+        entry.dump(d)
+        return d
+    
+    def dump(self, to: dict[str, Any]):
+        super().dump(to)
+        to["type"] = "root"
 
 
 def registry_from_info(data: dict, info: ValidationInfo, key: str = "type"):
