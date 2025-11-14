@@ -879,7 +879,7 @@ class GithubLikeProvider(AssetProvider[AT, CT, DT]):
         try:
             repo = assets.github.get_repo(name)
         except UnknownObjectException:
-            raise ValueError(f"Unknown repository {name}")
+            raise utils.FriendlyException(f"Unknown repository {name}")
         self.repo_cache[name] = repo
         return repo
     
