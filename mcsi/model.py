@@ -460,11 +460,13 @@ class PaperCoreCache(FilesCache):
     def display_name(self) -> str:
         return f"paper-{self.build_number}"
 
+DEFAULT_PROFILE = "default"
 
 class Cache(BaseModel):
     version: str = __version__
     server_folder: Path
     mc_version: str
+    profile: str = DEFAULT_PROFILE
     assets: dict[str, AssetCache] = {}
     core: CoreCache | None = None
 
@@ -474,8 +476,8 @@ class Cache(BaseModel):
         return self
 
     @staticmethod
-    def create(mf: Manifest, folder: Path):
-        return Cache(server_folder=folder, mc_version=mf.mc_version)
+    def create(mf: Manifest, folder: Path, profile: str):
+        return Cache(server_folder=folder, mc_version=mf.mc_version, profile=profile)
 
     @staticmethod
     def load(file: Path, registries: Registries):

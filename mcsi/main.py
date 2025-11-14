@@ -42,35 +42,35 @@ def millis():
 
 
 class CacheStore:
-    def __init__(self, file: Path, mf: Manifest, registries: Registries, debug: bool, folder: Path) -> None:
+    def __init__(self, file: Path, mf: Manifest, env: "Environment", folder: Path) -> None:
         self.mf = mf
-        self.registries = registries
-        self.cache = Cache.create(mf, folder)
+        self.env = env
+        self.cache = Cache.create(mf, folder, env.profile)
         self.logger = logging.getLogger("Cache")
-        self.logger.setLevel(logging.DEBUG if debug else logging.INFO)
+        self.logger.setLevel(logging.DEBUG if env.debug else logging.INFO)
         self.file = file
         self.dirty = False
         """Specifies if cache was modified"""
-        self.debug = debug
         self.folder = folder
 
     def save(self):
         if not self.dirty:
             return
         self.cache.version = __version__
-        self.cache.save(self.file, self.registries, self.debug)
+        self.cache.profile = self.env.profile
+        self.cache.save(self.file, self.env.registries, self.env.debug)
         self.dirty = False
 
     def reset(self):
-        self.cache = Cache.create(self.mf, self.folder)
+        self.cache = Cache.create(self.mf, self.folder, self.env.profile)
         self.logger.debug("Cache reset.")
 
-    def load(self, registries: Registries):
+    def load(self):
         if not self.file.is_file():
             self.reset()
             return
         try:
-            self.cache, asset_errors = Cache.load(self.file, registries)
+            self.cache, asset_errors = Cache.load(self.file, self.env.registries)
             for k, error in asset_errors.items():
                 lines = []
                 for e in error.errors():
@@ -185,6 +185,13 @@ class Authorization(BaseModel):
     github: str | None = None
 
 
+@dataclass
+class Environment:
+    auth: Authorization
+    profile: str
+    registries: Registries
+    debug: bool
+
 # Probably shit class
 @dataclass(kw_only=True)
 class DownloadData:
@@ -271,11 +278,13 @@ class JenkinsData(DownloadData):
 
 
 class ExpressionProcessor:
-    def __init__(self, logger: logging.Logger, folder: Path, registries: Registries) -> None:
+    def __init__(self, logger: logging.Logger, folder: Path, env: Environment) -> None:
         self.logger = logger
         self.folder = folder
-        self.registries = registries
+        self.env = env
         self.intpr = Interpreter(minimal=True)
+        self.setsym(self.env, True, "env")
+        self.setsym(self.env.profile, True, "profile")
 
     def log_error(self, error: ExceptionHolder, expr: Expr, source_key: str, source_text: str):
         if not error.exc:
@@ -373,24 +382,26 @@ class ExpressionProcessor:
             if not b: # False or None
                 return
         action_type = action.get_type()
-        handlers = self.registries.get_registry(ActionHandler)
+        handlers = self.env.registries.get_registry(ActionHandler)
         if not handlers:
             raise ValueError("Failed to find ActionHandler registry")
         handler = handlers.get(action_type)
         if handler is None:
             raise ValueError(f"Failed to find provider for action {action_type!r}")
         handler.handle(self, key, action, data)
+    
+    def setsym(self, value: Any, const: bool, *names: str):
+        for name in names:
+            self.intpr.symtable[name] = value
+            if const:
+                self.intpr.readonly_symbols.add(name)
 
     def process(self, asset: Asset, group: "AssetsGroup", data: DownloadData):
         ls = asset.actions
         if not ls:
             return data
-        self.intpr.symtable["data"] = data
-        self.intpr.symtable["d"] = data
-        self.intpr.symtable["asset"] = asset
-        self.intpr.symtable["a"] = asset
-        for n in ["data", "d", "asset", "a"]:
-            self.intpr.readonly_symbols.add(n)
+        self.setsym(data, True, "data", "d")
+        self.setsym(data, True, "asset", "a")
         ak = group.get_manifest_name()+"."+asset.resolve_asset_id()
         for i, a in enumerate(ls):
             key = f"{ak}.actions[{i}]"
@@ -521,9 +532,9 @@ class CustomsGroup(AssetsGroup):
 class AssetInstaller:
     def __init__(self, installer: "Installer", temp_folder: Path, logger: logging.Logger, session: requests.Session) -> None:
         self.game_version = installer.manifest.mc_version
-        self.registry = installer.registries
-        self.auth = installer.auth
-        self.debug_enabled = installer.debug
+        self.env = installer.env
+        self.registry = self.env.registries
+        self.auth = self.env.auth
         self.temp_folder = temp_folder
         self.logger = logger
         _user_agent: str | bytes = session.headers["User-Agent"]
@@ -621,7 +632,7 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
     debug_enabled: LateInit[bool] = LateInit()
 
     def setup(self, assets: AssetInstaller):
-        self.debug_enabled = assets.debug_enabled
+        self.debug_enabled = assets.env.debug
 
     def get_logger_name(self):
         return type(self).__name__
@@ -1004,19 +1015,18 @@ class UpdateResult(Enum):
 
 class Installer:
     def __init__(self, manifest: Manifest, manifest_path: Path,
-                 server_folder: Path, auth: Authorization, debug: bool,
-                 registries: Registries, logger: logging.Logger) -> None:
-        self.registries = registries
+                 server_folder: Path, env: Environment, logger: logging.Logger) -> None:
+        self.registries = env.registries
         self.manifest = manifest
         self.manifest_path = manifest_path
         self.folder = server_folder
-        self.auth = auth
-        self.debug = debug
+        self.debug = env.debug
+        self.env = env
         self.logger = logger
         self.session = requests.Session()
         self.session.headers["User-Agent"] = "BoBkiNN/mc-server-installer"
         self.cache = CacheStore(
-            self.folder / ".install_cache.json", manifest, self.registries, debug, self.folder)
+            self.folder / ".install_cache.json", manifest, self.env, self.folder)
         self.assets = AssetInstaller(self, self.folder / "tmp", self.logger, self.session)
         self.mods_folder = self.folder / "mods"
         self.plugins_folder = self.folder / "plugins"
@@ -1036,7 +1046,7 @@ class Installer:
 
     def prepare(self, validate: bool):
         self.setup_providers()
-        self.cache.load(self.registries)
+        self.cache.load()
         if validate:
             self.cache.check_all_assets(self.manifest)
         self.logger.info(
@@ -1139,7 +1149,7 @@ class Installer:
         if asset.actions:
             logger = logging.getLogger("Expr#"+asset_id)
             logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
-            exprs = ExpressionProcessor(logger, self.folder, self.registries)
+            exprs = ExpressionProcessor(logger, self.folder, self.env)
             exprs.process(asset, group, data)
 
         cache = data.create_cache()
@@ -1156,7 +1166,7 @@ class Installer:
             if if_code:
                 logger = logging.getLogger("Expr#"+asset_id)
                 logger.setLevel(logging.DEBUG if self.debug else logging.INFO)
-                exprs = ExpressionProcessor(logger, self.folder, self.registries)
+                exprs = ExpressionProcessor(logger, self.folder, self.env)
                 v = exprs.eval_if(ak+".if", if_code)
                 if v is False:
                     return False
@@ -1458,7 +1468,14 @@ def main():
     is_flag=True,
     help="Debug logging switch",
 )
-def install(manifest: Path | None, folder: Path, github_token: str | None, debug: bool):
+@click.option(
+    "--profile",
+    type=str,
+    default=DEFAULT_PROFILE,
+    help="Server profile to use",
+)
+def install(manifest: Path | None, folder: Path, github_token: str | None, 
+            debug: bool, profile: str):
     """Installs core and all assets by downloading them and executing actions"""
     setup_logging(debug)
     mfp = select_manifest_path(manifest)
@@ -1469,8 +1486,9 @@ def install(manifest: Path | None, folder: Path, github_token: str | None, debug
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
-    installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
-    installer.logger.info(f"✅ Using manifest {mfp}")
+    env = Environment(auth, profile, ROOT_REGISTRY, debug)
+    installer = Installer(mf, mfp, folder, env, logger)
+    installer.logger.info(f"✅ Using manifest {mfp} with profile {profile!r}")
     installer.prepare(True)
     installer.install_core()
     installer.install_mods()
@@ -1533,7 +1551,14 @@ def schema(out: Path, pretty: bool):
     is_flag=True,
     help="Debug logging switch",
 )
-def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | None, debug: bool):
+@click.option(
+    "--profile",
+    type=str,
+    default=DEFAULT_PROFILE,
+    help="Server profile to use",
+)
+def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | None, 
+           debug: bool, profile: str):
     """Checks cached assets for updates and installs new versions if dry mode disabled"""
     setup_logging(debug)
     mfp = select_manifest_path(manifest)
@@ -1544,7 +1569,8 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
     mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
-    installer = Installer(mf, mfp, folder, auth, debug, ROOT_REGISTRY, logger)
+    env = Environment(auth, profile, ROOT_REGISTRY, debug)
+    installer = Installer(mf, mfp, folder, env, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
     installer.prepare(False)
     installer.update_core(dry)
