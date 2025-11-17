@@ -105,10 +105,11 @@ To run this files you need to have Python 3.10 or newer installed on your comput
 ## Usage
 Command syntax is `python mcsi-ver-os.pyz <command> <args>`.
 
-Currently there are 3 commands, each doing a set of actions:
+Currently there are 4 commands, each doing a set of actions:
 - `install`: Primary command used to install server. It searches for manifest file in current folder (or uses specified using args) and installs server to specified folder (defaults to current folder)
 - `update`: Uses installation cache for check asset for updates. Dry mode can be enabled to perform update check without installation.
 - `schema`: Can be used to generate `manifest_schema.json`
+- `dump`: Can be used to dump all registry entries into JSON file (default is `registries.json`)
 
 You can see usage for any command by adding `--help` argument
 
