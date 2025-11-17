@@ -111,11 +111,7 @@ class ModelRegistry(Generic[M], Registry[type[M]]):
     
     def dump_entry(self, entry: type[M]) -> Any:
         fqn = f"{entry.__module__}.{entry.__qualname__}"
-        fields = [name for name in entry.model_fields]
-        return {
-            "type": fqn,
-            "fields": fields
-        }
+        return fqn
     
     def dump(self, to: dict[str, Any]):
         super().dump(to)
