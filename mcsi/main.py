@@ -903,7 +903,7 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
         self.debug(f"Getting repository {asset.repository}")
         repo = self.get_repo(assets, asset.repository)
         release: GitRelease = self.get_release(repo, asset.version)
-        self.info(f"Found release {release.title!r}")
+        self.info(f"Found release {release.name!r}")
         ls = release.get_assets()
         m = {a.name: a for a in ls}
         names = asset.get_file_selector(assets.registry).find_targets(list(m))
@@ -927,7 +927,7 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
         self.debug(f"Getting repository {asset.repository}")
         repo = self.get_repo(assets, asset.repository)
         release: GitRelease = self.get_release(repo, asset.version)
-        self.info(f"Found release {release.title!r}")
+        self.info(f"Found release {release.name!r}")
         if release.tag_name != cached.tag:
             return UpdateStatus.OUTDATED
         else:
