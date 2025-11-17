@@ -88,9 +88,11 @@ Currently, there are 3 action types which you can use:
 Template expressions are a flexible and simple way to insert values into text. Inspired by Github Actions, expressions are enclosed in `${{` and `}}` characters. When needed, you can escape expression by adding `\` before `$`.<br>
 Expressions in brackets must be valid python code that gives some value that will be inserted into text.
 
-There are two variables that is exposed in template expressions used in `actions` list:  
+There are 4 variables that is exposed in template expressions used in `actions` list:  
 - `data` (`d`) - is an object representing the data downloaded by the provider. Different providers have different data types. For example, `github` provider has `GithubReleaseData` which has `repo` and `release` fields which is objects from [PyGithub](https://pypi.org/project/PyGithub/) library. Also each data type has `files`, `primary_files` and `first_file` properties that contains downloaded file path(s) relative to server folder.
 - `asset` (`a`) - Is an object mirroring asset declaration that specified in manifest 
+- `env` - is an object representing `Environment` data class. It has current profile (`profile`), authorization data (`auth`), registry access (`registries`) and `debug` flag.
+- `profile` - shortcut to `env.profile`
 
 # Installation and running
 There are 3 `.pyz` files in each release and you need to pick most closest to you:
