@@ -150,6 +150,12 @@ class Registries(Registry[Registry]):
         else:
             return None
     
+    def get_entry(self, registry: type[T], key: str) -> T | None:
+        reg = self.get_registry(registry)
+        if not reg:
+            raise KeyError(f"Unknown registry for type {registry}")
+        return reg.get(key)
+    
     def dump_entry(self, entry: Registry) -> Any:
         d = {}
         entry.dump(d)

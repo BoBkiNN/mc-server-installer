@@ -382,10 +382,7 @@ class ExpressionProcessor:
             if not b: # False or None
                 return
         action_type = action.get_type()
-        handlers = self.env.registries.get_registry(ActionHandler)
-        if not handlers:
-            raise ValueError("Failed to find ActionHandler registry")
-        handler = handlers.get(action_type)
+        handler = self.env.registries.get_entry(ActionHandler, action_type)
         if handler is None:
             raise ValueError(f"Failed to find provider for action {action_type!r}")
         handler.handle(self, key, action, data)
@@ -1110,10 +1107,7 @@ class Installer:
         self.cache.store_core(i)
 
     def download_asset(self, asset: Asset, group: AssetsGroup):
-        reg = self.registries.get_registry(AssetProvider)
-        if reg is None:
-            raise ValueError("Registry providers is not set!")
-        provider = reg.get(asset.get_type())
+        provider = self.registries.get_entry(AssetProvider, asset.get_type())
         if provider:
             data = provider.download(self.assets, asset, group)
         else:
@@ -1242,11 +1236,8 @@ class Installer:
             self.logger.info(f"🚩 {entry_name.capitalize()}: {v}")
     
     def check_update(self, asset: Asset, group: AssetsGroup, cached: AssetCache) -> UpdateStatus:
-        reg = self.registries.get_registry(AssetProvider)
-        if not reg:
-            raise ValueError("Failed to find providers registry!")
         key = asset.get_type()
-        provider = reg.get(key)
+        provider = self.registries.get_entry(AssetProvider, key)
         if not provider:
             raise ValueError(f"Unknown provider {key!r}")
         try:
@@ -1261,11 +1252,8 @@ class Installer:
         Returns True if successfully installed and False if not <br>
         Returns None if no updates available or dry run
         """
-        reg = self.registries.get_registry(AssetProvider)
-        if not reg:
-            raise ValueError("Failed to find providers registry!")
         key = asset.get_type()
-        provider = reg.get(key)
+        provider = self.registries.get_entry(AssetProvider, key)
         if not provider:
             raise ValueError(f"Unknown provider {key!r}")
         if not provider.supports_update_checking():
