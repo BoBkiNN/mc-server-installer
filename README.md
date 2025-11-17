@@ -146,7 +146,6 @@ Now, once you have attached a schema, you can use IDE suggestions to fill you ma
 Planned features and improvements for this project:
 - Improve and structurize core installation logic
 - Better way of passing authorization data and using it in assets
-- Manifest metadata about creator and etc
 - Provide example manifest
 - Hangar support
 - Check all assets ids for uniqueness

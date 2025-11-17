@@ -312,10 +312,22 @@ Core = Annotated[
 AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(
     "assets"), Field(title="Asset")]
 
-# ProviderUnion: TypeAlias = Annotated[Union[ModrinthProvider, GithubReleasesProvider], Field(title="Provider", discriminator="type")]
+class ManifestMeta(BaseModel):
+    """Information about this manifest"""
+    model_config = ConfigDict(use_attribute_docstrings=True)
+
+    author: str
+    """Server author(s)"""
+    version: str = "1.0.0"
+    """Server version"""
+    description: str = ""
+    """Server description"""
+    link: str = ""
+    """Link to server project page or author page"""
 
 class Manifest(BaseModel):
     version: str = __version__
+    meta: ManifestMeta
     mc_version: str
     core: Core
 

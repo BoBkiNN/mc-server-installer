@@ -469,6 +469,39 @@
       "title": "JenkinsAsset",
       "type": "object"
     },
+    "ManifestMeta": {
+      "description": "Information about this manifest",
+      "properties": {
+        "author": {
+          "description": "Server author(s)",
+          "title": "Author",
+          "type": "string"
+        },
+        "version": {
+          "default": "1.0.0",
+          "description": "Server version",
+          "title": "Version",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "description": "Server description",
+          "title": "Description",
+          "type": "string"
+        },
+        "link": {
+          "default": "",
+          "description": "Link to server project page or author page",
+          "title": "Link",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author"
+      ],
+      "title": "ManifestMeta",
+      "type": "object"
+    },
     "ModrinthAsset": {
       "description": "Downloads asset from modrinth",
       "properties": {
@@ -946,9 +979,12 @@
   },
   "properties": {
     "version": {
-      "default": "2.1.2",
+      "default": "2.1.3-dev",
       "title": "Version",
       "type": "string"
+    },
+    "meta": {
+      "$ref": "#/$defs/ManifestMeta"
     },
     "mc_version": {
       "title": "Mc Version",
@@ -1006,6 +1042,7 @@
     }
   },
   "required": [
+    "meta",
     "mc_version",
     "core"
   ],
