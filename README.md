@@ -150,5 +150,5 @@ Planned features and improvements for this project:
 - Provide example manifest
 - Hangar support
 - Check all assets ids for uniqueness
-- Variants that will switch assets
 - asset configurations with YML/JSON/TOML support
+- Split core and providers
