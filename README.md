@@ -152,3 +152,5 @@ Planned features and improvements for this project:
 - Provide example manifest
 - Hangar support
 - asset configurations with YML/JSON/TOML support
+- concurrent installing and update checking
+- resolve asset dependencies
