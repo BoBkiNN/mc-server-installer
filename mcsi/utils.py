@@ -1,4 +1,4 @@
-from typing import Union, TypeVar, Callable
+from typing import Union, TypeVar, Callable, Generic, Optional
 
 T = TypeVar("T")
 
@@ -80,3 +80,23 @@ def parse_template_parts(s: str, converter: Callable[[str], T], interpret_escape
 class FriendlyException(Exception):
     """Friendly exceptions are used to hide stacktraces from user."""
     pass
+
+
+class LateInit(Generic[T]):
+    def __init__(self):
+        self._value: Optional[T] = None
+        self._value_set: bool = False
+
+    def __get__(self, instance, owner) -> T:
+        if not self._value_set:
+            raise AttributeError(
+                "LateInit variable accessed before initialization")
+        return self._value  # type: ignore
+
+    def __set__(self, instance, value: T) -> None:
+        self._value = value
+        self._value_set = True
+
+    def __delete__(self, instance) -> None:
+        self._value = None
+        self._value_set = False

@@ -5,8 +5,8 @@ from github.Repository import Repository
 from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
 from model import FileSelectorKey, FileSelectorUnion, FilesCache, Asset, LatestOrStr
-from main import AssetProvider, DownloadData, AssetInstaller, AssetsGroup, \
-    UpdateStatus, Environment, AT, CT, DT, LateInit
+from main import AssetProvider, AssetInstaller, AT, CT, DT
+from core import UpdateStatus, Environment, AssetsGroup, DownloadData
 from dataclasses import dataclass
 from typing import Literal
 import re
@@ -83,7 +83,7 @@ class GithubActionsData(DownloadData):
 
 
 class GithubLikeProvider(AssetProvider[AT, CT, DT]):
-    github: LateInit[Github] = LateInit()
+    github: utils.LateInit[Github] = utils.LateInit()
 
     def __init__(self) -> None:
         super().__init__()

@@ -3,8 +3,10 @@ import re
 from typing import Literal
 from dataclasses import dataclass
 import api.labrinth as labrinth
-from main import AssetProvider, AssetInstaller, AssetsGroup, UpdateStatus, DownloadData, LateInit, Environment
+from main import AssetProvider, AssetInstaller
+from core import UpdateStatus, Environment, AssetsGroup, DownloadData
 from registry import Registries
+from utils import LateInit
 
 class ModrinthAsset(Asset):
     """Downloads asset from modrinth"""

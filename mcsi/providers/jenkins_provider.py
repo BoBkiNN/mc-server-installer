@@ -1,7 +1,8 @@
 import api.jenkins_models as jm
 import jenkins
 from model import FileSelectorKey, FileSelectorUnion, FilesCache, Asset
-from main import AssetProvider, DownloadData, AssetInstaller, AssetsGroup, UpdateStatus, Environment
+from main import AssetProvider, AssetInstaller
+from core import UpdateStatus, Environment, AssetsGroup, DownloadData
 from dataclasses import dataclass
 from typing import Literal
 from pydantic import HttpUrl

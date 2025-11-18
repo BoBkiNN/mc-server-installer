@@ -12,7 +12,6 @@ if os.path.isdir(VENDOR_PATH) and VENDOR_PATH not in sys.path:
 import logging
 import time
 import uuid
-from dataclasses import dataclass
 from typing import Sequence
 from zipfile import ZipFile
 
@@ -26,7 +25,9 @@ from __version__ import __version__
 from asteval import Interpreter
 from asteval.astutils import ExceptionHolder
 from model import *
+from core import UpdateStatus, Environment, Authorization, AssetsGroup, DownloadData
 from regunion import make_registry_schema_generator
+from utils import LateInit
 
 
 def millis():
@@ -171,60 +172,6 @@ class CacheStore:
             self.invalidate_core()
             return None
         return cached
-
-
-class Authorization(BaseModel):
-    github: str | None = None
-
-
-@dataclass
-class Environment:
-    auth: Authorization
-    profile: str
-    registries: Registries
-    debug: bool
-
-# Probably shit class
-@dataclass(kw_only=True)
-class DownloadData:
-    files: list[Path]
-    primary_file: Path | None = None
-
-    @property
-    def primary(self):
-        if self.primary_file:
-            return self.primary_file
-        elif self.first_file:
-            return self.first_file
-        else:
-            raise ValueError("No files set")
-
-    @primary.setter
-    def primary(self, file: Path):
-        if self.primary_file:
-            self.primary_file = file
-        else:
-            self.first_file = file
-
-    def unset_primary(self):
-        self.primary_file = None
-
-    @property
-    def first_file(self):
-        if self.files:
-            return self.files[0]
-        else:
-            return None
-
-    @first_file.setter
-    def first_file(self, file: Path):
-        if self.files:
-            self.files[0] = file
-        else:
-            self.files.append(file)
-
-    def create_cache(self) -> FilesCache:
-        return FilesCache(files=self.files)
 
 
 class ExpressionProcessor:
@@ -413,21 +360,6 @@ class UnzipActionHandler(ActionHandler[UnzipFile]):
         proc.logger.info(f"✅ Unzipped {data.primary} into {folder}")
         return True
 
-class AssetsGroup(ABC):
-    @abstractmethod
-    def get_folder(self, asset: Asset) -> Path:
-        ...
-
-    @abstractmethod
-    def get_manifest_name(self) -> str:
-        ...
-
-    @property
-    @abstractmethod
-    def unit_name(self) -> str:
-        ...
-
-
 class PluginsGroup(AssetsGroup):
     def get_folder(self, asset: Asset) -> Path:
         return Path("plugins")
@@ -532,31 +464,6 @@ class AssetInstaller:
                     f.write(chunk)
                     bar.update(len(chunk))
         bar.close()
-
-
-class LateInit(Generic[T]):
-    def __init__(self):
-        self._value: Optional[T] = None
-        self._value_set: bool = False
-
-    def __get__(self, instance, owner) -> T:
-        if not self._value_set:
-            raise AttributeError(
-                "LateInit variable accessed before initialization")
-        return self._value  # type: ignore
-
-    def __set__(self, instance, value: T) -> None:
-        self._value = value
-        self._value_set = True
-
-    def __delete__(self, instance) -> None:
-        self._value = None
-        self._value_set = False
-
-class UpdateStatus(Enum):
-    UP_TO_DATE = False
-    AHEAD = False
-    OUTDATED = True
 
 
 AT = TypeVar("AT", bound=Asset)
