@@ -1,4 +1,4 @@
-from typing import Union, TypeVar, Callable, Generic, Optional
+from typing import Union, TypeVar, Callable, Generic, overload
 
 T = TypeVar("T")
 
@@ -83,20 +83,25 @@ class FriendlyException(Exception):
 
 
 class LateInit(Generic[T]):
-    def __init__(self):
-        self._value: Optional[T] = None
-        self._value_set: bool = False
+    def __set_name__(self, owner, name):
+        self.name = name
 
-    def __get__(self, instance, owner) -> T:
-        if not self._value_set:
+    @overload
+    def __get__(self, instance: None, owner) -> "LateInit[T]": ...
+
+    @overload
+    def __get__(self, instance, owner) -> T: ...
+
+    def __get__(self, instance: object, owner):
+        if instance is None:
+            return self
+        if self.name not in instance.__dict__:
             raise AttributeError(
                 "LateInit variable accessed before initialization")
-        return self._value  # type: ignore
+        return instance.__dict__[self.name]
 
-    def __set__(self, instance, value: T) -> None:
-        self._value = value
-        self._value_set = True
+    def __set__(self, instance: object, value: T) -> None:
+        instance.__dict__[self.name] = value
 
-    def __delete__(self, instance) -> None:
-        self._value = None
-        self._value_set = False
+    def __delete__(self, instance: object) -> None:
+        instance.__dict__.pop(self.name, None)
