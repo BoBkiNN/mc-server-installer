@@ -1,4 +1,5 @@
 from typing import Union, TypeVar, Callable, Generic, overload
+import time
 
 T = TypeVar("T")
 
@@ -105,3 +106,7 @@ class LateInit(Generic[T]):
 
     def __delete__(self, instance: object) -> None:
         instance.__dict__.pop(self.name, None)
+
+
+def millis():
+    return int(time.time()*1000)

@@ -10,7 +10,7 @@ import requests, tqdm, logging
 from utils import LateInit
 
 from __version__ import __version__
-import os, uuid, time
+import os, uuid
 
 
 import requests
@@ -49,8 +49,6 @@ class AssetsGroup(ABC):
         ...
 
 # Probably shit class
-
-
 @dataclass(kw_only=True)
 class DownloadData:
     files: list[Path]
@@ -211,11 +209,6 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
     def has_update(self, assets: AssetInstaller, asset: AT,
                    group: AssetsGroup, cached: CT) -> UpdateStatus:
         raise NotImplementedError
-
-
-def millis():
-    return int(time.time()*1000)
-
 
 class CacheStore:
     def __init__(self, file: Path, mf: Manifest, env: "Environment", folder: Path) -> None:
