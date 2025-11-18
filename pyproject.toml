@@ -26,7 +26,13 @@ sync-ver = "scripts.write_version:main"
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
 [dependency-groups]
 dev = [
-    "toml (>=0.10.2,<0.11.0)"
+    "toml (>=0.10.2,<0.11.0)",
+    "pytest (>=9.0.1,<10.0.0)"
 ]
