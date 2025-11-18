@@ -1244,6 +1244,9 @@ class Installer:
             return provider.has_update(self.assets, asset, group, cached.data)
         except NotImplementedError as e:
             raise ValueError(f"Provider {key!r} do not implemented update checking")
+        except utils.FriendlyException as e:
+            raise utils.FriendlyException(
+                f"Exception checking update: {e}") from e
         except Exception as e:
             raise ValueError(f"Exception checking update for {group.unit_name} {asset.resolve_asset_id()}") from e
     
@@ -1307,8 +1310,12 @@ class Installer:
             try:
                 r = self.update_lifecycle(asset, group, dry)
             except Exception as e:
-                self.logger.error(
-                    f"❌ Failed to complete update lifecycle for {group.unit_name} {asset_id}", exc_info=e)
+                if isinstance(e, utils.FriendlyException) and not self.debug:
+                    self.logger.error(
+                        f"❌ Failed to complete update lifecycle for {group.unit_name} {asset_id}: {e}")
+                else:
+                    self.logger.error(
+                        f"❌ Failed to complete update lifecycle for {group.unit_name} {asset_id}", exc_info=e)
                 results[asset_id] = UpdateResult.FAILED
                 continue
             results[asset_id] = r
