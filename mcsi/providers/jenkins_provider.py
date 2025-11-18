@@ -1,4 +1,4 @@
-import jenkins_models as jm
+import api.jenkins_models as jm
 import jenkins
 from model import FileSelectorKey, FileSelectorUnion, FilesCache, Asset
 from main import AssetProvider, DownloadData, AssetInstaller, AssetsGroup, UpdateStatus, Environment
