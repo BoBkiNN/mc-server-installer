@@ -1,3 +1,8 @@
+"""Modrinth API
+
+Modrinth - https://modrinth.com/<br>
+Labrinth - https://github.com/modrinth/code/tree/main/apps/labrinth
+"""
 from enum import Enum
 from typing import TypeVar
 from urllib.parse import urlencode
