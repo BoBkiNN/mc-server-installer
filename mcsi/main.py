@@ -19,7 +19,7 @@ from zipfile import ZipFile
 import click
 import colorlog
 import jenkins
-import jenkins_models as jm
+
 import papermc_fill as papermc
 import requests
 import tqdm
@@ -255,17 +255,6 @@ class GithubActionsData(DownloadData):
 
     def create_cache(self) -> FilesCache:
         return GithubActionsCache(files=self.files, run_id=self.run.id, run_number=self.run.run_number)
-
-
-@dataclass
-class JenkinsData(DownloadData):
-    job: jm.Job
-    build: jm.Build
-    artifacts: list[jm.Artifact]
-
-    def create_cache(self) -> FilesCache:
-        return JenkinsCache(files=self.files, build_number=self.build.number)
-
 
 class ExpressionProcessor:
     def __init__(self, logger: logging.Logger, folder: Path, env: Environment) -> None:
@@ -668,83 +657,6 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
     def has_update(self, assets: AssetInstaller, asset: AT,
                    group: AssetsGroup, cached: CT) -> UpdateStatus:
         raise NotImplementedError
-
-
-class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
-
-    def get_logger_name(self):
-        return "Jenkins"
-    
-    def get_build(self, j: jenkins.Jenkins, job: jm.Job, asset: JenkinsAsset):
-        build: jm.Build | None
-        if asset.version == "latest":
-            lsb = job.lastSuccessfulBuild
-            if not lsb:
-                raise ValueError(
-                    f"No latest successful build found for {job.name}")
-            build = jm.Build.get_build(j, asset.job, lsb.number)
-        else:
-            build = jm.Build.get_build(j, asset.job, asset.version)
-        if not build:
-            raise ValueError(
-                f"Build {asset.job}#{asset.version} not found")
-        if not build.result.is_complete_build():
-            raise ValueError(
-                f"Build {build.fullDisplayName} is not completed: {build.result}")
-        return build
-
-    def download(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup) -> JenkinsData:
-        j = jenkins.Jenkins(str(asset.url))
-        job = jm.Job.get_job(j, asset.job)
-        if not job:
-            raise ValueError(f"Unknown job {asset.job}")
-        build: jm.Build = self.get_build(j, job, asset)
-        self.info(f"Found build {build.fullDisplayName}")
-        fn = asset.get_file_selector(assets.registry).find_targets(
-            [a.fileName for a in build.artifacts])
-        filtered = [a for a in build.artifacts if a.fileName in fn]
-        if not filtered:
-            raise ValueError("No artifacts passed filter")
-
-        folder = group.get_folder(asset)
-
-        def download_artifact(a: jm.Artifact):
-            url = f"{build.url}artifact/"+a.relativePath
-            to = folder / a.fileName
-            self.info(
-                f"🌐 Downloading artifact {a.fileName} from build '{build.fullDisplayName}'")
-            self.download_file(assets.session, url, to)
-            return to
-        files: dict[Path, jm.Artifact] = {}
-        for a in filtered:
-            p = download_artifact(a)
-            if p:
-                self.info(f"✅ Downloaded artifact to {p}")
-                files[p] = a
-            else:
-                self.logger.warning(
-                    f"⚠  Failed to download artifact {a.fileName}")
-        return JenkinsData(job, build, artifacts=list(files.values()), files=list(files.keys()))
-    
-    def supports_update_checking(self):
-        return True
-    
-    def has_update(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup, cached: JenkinsCache) -> UpdateStatus:
-        j = jenkins.Jenkins(str(asset.url))
-        job = jm.Job.get_job(j, asset.job)
-        if not job:
-            raise ValueError(f"Unknown job {asset.job}")
-        build: jm.Build = self.get_build(j, job, asset)
-        self.info(f"Found build {build.fullDisplayName}")
-        if cached.build_number > build.number:
-            return UpdateStatus.AHEAD
-        elif cached.build_number < build.number:
-            return UpdateStatus.OUTDATED
-        else:
-            return UpdateStatus.UP_TO_DATE
-
-
-
 
 class GithubLikeProvider(AssetProvider[AT, CT, DT]):
     def __init__(self) -> None:
@@ -1247,17 +1159,15 @@ CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry(
     "asset_cache", FilesCache)
 CACHES_REGISTRY.register_models(FilesCache, GithubReleaseCache,
                                 GithubActionsCache,
-                                PaperCoreCache, JenkinsCache)
+                                PaperCoreCache)
 FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
     "file_selectors", FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
 ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
-ASSETS.register_models(GithubReleasesAsset, GithubActionsAsset,
-                          JenkinsAsset, NoteAsset)
+ASSETS.register_models(GithubReleasesAsset, GithubActionsAsset, NoteAsset)
 
 PROVIDERS = ROOT_REGISTRY.create_registry("providers", AssetProvider)
-PROVIDERS.register("jenkins", JenkinsProvider())
 PROVIDERS.register("github", GithubReleasesProvider())
 PROVIDERS.register("github-actions", GithubActionsProvider())
 

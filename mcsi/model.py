@@ -218,23 +218,6 @@ class GithubActionsAsset(Asset):
     def is_latest(self) -> bool:
         return self.version == "latest"
 
-
-class JenkinsAsset(Asset):
-    version: Literal["latest"] | int
-    url: HttpUrl
-    """URL to Jenkins instance"""
-    job: str
-    """Name of job"""
-    file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
-    type: Literal["jenkins"]
-
-    def create_asset_id(self) -> str:
-        host = self.url.host or "Unknown"
-        return f"{self.job}@{host}"
-    
-    def is_latest(self) -> bool:
-        return self.version == "latest"
-
 class NoteAsset(Asset):
     """Asset that must manually be installed.<br>
     Logs a message after installation containing note"""
@@ -405,10 +388,6 @@ class GithubActionsCache(FilesCache):
     run_id: int
     run_number: int
 
-
-class JenkinsCache(FilesCache):
-    type: str = "jenkins"
-    build_number: int
 
 @dataclass
 class InvalidReason:
