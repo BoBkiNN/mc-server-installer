@@ -242,5 +242,5 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, "github", GithubReleasesProvider())
     registries.register_to(AssetProvider, "github-actions", GithubActionsProvider())
-    registries.register_model_to(Asset, GithubActionsAsset, GithubReleasesAsset)
-    registries.register_model_to(FilesCache, GithubActionsCache, GithubReleaseCache)
+    registries.register_models_to(Asset, GithubActionsAsset, GithubReleasesAsset)
+    registries.register_models_to(FilesCache, GithubActionsCache, GithubReleaseCache)

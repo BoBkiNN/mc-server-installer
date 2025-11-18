@@ -118,5 +118,5 @@ KEY = "jenkins"
 
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, KEY, JenkinsProvider())
-    registries.register_model_to(Asset, JenkinsAsset)
-    registries.register_model_to(FilesCache, JenkinsCache)
+    registries.register_models_to(Asset, JenkinsAsset)
+    registries.register_models_to(FilesCache, JenkinsCache)

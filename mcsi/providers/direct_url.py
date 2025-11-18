@@ -48,4 +48,4 @@ KEY = "url"
 
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, KEY, DirectUrlProvider())
-    registries.register_model_to(Asset, DirectUrlAsset)
+    registries.register_models_to(Asset, DirectUrlAsset)

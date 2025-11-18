@@ -131,5 +131,5 @@ KEY = "modrinth"
 
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, KEY, ModrinthProvider())
-    registries.register_model_to(Asset, ModrinthAsset)
-    registries.register_model_to(FilesCache, ModrinthCache)
+    registries.register_models_to(Asset, ModrinthAsset)
+    registries.register_models_to(FilesCache, ModrinthCache)
