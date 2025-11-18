@@ -18,7 +18,6 @@ from zipfile import ZipFile
 
 import click
 import colorlog
-import jenkins
 
 import papermc_fill as papermc
 import requests
