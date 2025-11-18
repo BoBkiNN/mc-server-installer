@@ -153,4 +153,4 @@ Planned features and improvements for this project:
 - Hangar support
 - Check all assets ids for uniqueness
 - asset configurations with YML/JSON/TOML support
-- Split core and providers
+- Split system and providers
