@@ -114,7 +114,7 @@ Currently there are 4 commands, each doing a set of actions:
 You can see usage for any command by adding `--help` argument
 
 Example minimal command:  
-`python mcsi-2.1.2-win.pyz install --manifest myserver.json5`  
+`python mcsi-2.2.0-win.pyz install --manifest myserver.json5`  
 This command above uses `myserver.json5` manifest file to install server into current folder.
 
 # Writing you own manifest
@@ -137,7 +137,7 @@ A schema is a description of the document used by the IDE to provide you documen
 To attach a schema you must find the link to `manifest_schema` and insert it into document in place supported by your IDE. The most common way is using JSON-like language:
 ```json5
 {
-    $schema: "https://raw.githubusercontent.com/BoBkiNN/mc-server-installer/refs/tags/2.1.2/mcsi/manifest_schema.json"
+    $schema: "https://raw.githubusercontent.com/BoBkiNN/mc-server-installer/refs/tags/2.2.0/mcsi/manifest_schema.json"
     // rest of your manifest
 }
 ```
