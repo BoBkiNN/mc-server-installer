@@ -20,7 +20,7 @@ import click
 import colorlog
 import jenkins
 import jenkins_models as jm
-import modrinth
+import labrinth
 import papermc_fill as papermc
 import requests
 import tqdm
@@ -260,8 +260,8 @@ class GithubActionsData(DownloadData):
 
 @dataclass
 class ModrinthData(DownloadData):
-    version: modrinth.Version
-    project: modrinth.Project
+    version: labrinth.Version
+    project: labrinth.Project
 
     def create_cache(self) -> FilesCache:
         return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
@@ -544,7 +544,7 @@ class AssetInstaller:
         self.session = session
         self.github = Github(auth=Auth.Token(self.auth.github)
                              if self.auth.github else None, user_agent=user_agent)
-        self.modrinth = modrinth.Modrinth(session)
+        self.modrinth = labrinth.Modrinth(session)
         self.temp_files: list[Path] = []
 
     def info(self, msg: object):
@@ -785,7 +785,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
     def get_logger_name(self):
         return "Modrinth"
     
-    def get_version(self, assets: AssetInstaller, project: modrinth.Project, asset: ModrinthAsset):
+    def get_version(self, assets: AssetInstaller, project: labrinth.Project, asset: ModrinthAsset):
         self.debug(f"Getting project versions..")
         game_versions = [] if asset.ignore_game_version else [assets.game_version]
         vers = assets.modrinth.get_versions(
@@ -794,7 +794,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
             raise ValueError(
                 f"Cannot find versions for project {asset.project_id}")
         name_pattern = asset.version_name_pattern
-        filtered: list[modrinth.Version] = []
+        filtered: list[labrinth.Version] = []
         self.debug(f"Got {len(vers)} versions from {project.title}")
         for ver in vers:
             # ignoring mc version currently
@@ -827,7 +827,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
 
         folder = group.get_folder(asset)
 
-        def download_version(ver: modrinth.Version):
+        def download_version(ver: labrinth.Version):
             # TODO use_primary and file_name_pattern properties here to return multiple files
             primary = ver.get_primary()
             if not primary:
