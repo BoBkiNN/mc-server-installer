@@ -1,8 +1,7 @@
 from pydantic import HttpUrl
 from typing import Literal
 from model import Asset, FilesCache
-from main import AssetInstaller, AssetProvider
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData
+from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetInstaller, AssetProvider
 import requests
 import utils
 from registry import Registries

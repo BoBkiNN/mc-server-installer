@@ -5,8 +5,7 @@ from github.Repository import Repository
 from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
 from model import FileSelectorKey, FileSelectorUnion, FilesCache, Asset, LatestOrStr
-from main import AssetProvider, AssetInstaller, AT, CT, DT
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData
+from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetProvider, AssetInstaller, AT, CT, DT
 from dataclasses import dataclass
 from typing import Literal
 import re

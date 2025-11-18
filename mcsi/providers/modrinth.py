@@ -2,9 +2,8 @@ from model import Asset, LatestOrStr, FilesCache
 import re
 from typing import Literal
 from dataclasses import dataclass
-import api.labrinth as labrinth
-from main import AssetProvider, AssetInstaller
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData
+import providers.api.labrinth as labrinth
+from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetProvider, AssetInstaller
 from registry import Registries
 from utils import LateInit
 
