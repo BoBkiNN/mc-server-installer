@@ -1,20 +1,20 @@
-from enum import Enum
-from pydantic import BaseModel
-from registry import Registries
-from dataclasses import dataclass
+import logging
+import os
+import uuid
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from model import *
-from typing import TypeVar, Generic
-import requests, tqdm, logging
-from utils import LateInit
-
-from __version__ import __version__
-import os, uuid
-
+from typing import Generic, TypeVar
 
 import requests
 import tqdm
+from __version__ import __version__
+from model import *
+from pydantic import BaseModel
+from registry import Registries
+from utils import LateInit
+
 
 class UpdateStatus(Enum):
     UP_TO_DATE = False
@@ -49,6 +49,8 @@ class AssetsGroup(ABC):
         ...
 
 # Probably shit class
+
+
 @dataclass(kw_only=True)
 class DownloadData:
     files: list[Path]
@@ -148,6 +150,7 @@ class AssetInstaller:
                     bar.update(len(chunk))
         bar.close()
 
+
 AT = TypeVar("AT", bound=Asset)
 CT = TypeVar("CT", bound=FilesCache)
 DT = TypeVar("DT", bound=DownloadData)
@@ -209,6 +212,7 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
     def has_update(self, assets: AssetInstaller, asset: AT,
                    group: AssetsGroup, cached: CT) -> UpdateStatus:
         raise NotImplementedError
+
 
 class CacheStore:
     def __init__(self, file: Path, mf: Manifest, env: "Environment", folder: Path) -> None:
@@ -358,5 +362,3 @@ class UpdateResult(Enum):
     UPDATED = 2
     UP_TO_DATE = 3
     FOUND = 4
-
-

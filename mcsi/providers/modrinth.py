@@ -1,11 +1,14 @@
-from model import Asset, LatestOrStr, FilesCache
 import re
-from typing import Literal
 from dataclasses import dataclass
+from typing import Literal
+
 import providers.api.labrinth as labrinth
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetProvider, AssetInstaller
+from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
+                  Environment, UpdateStatus)
+from model import Asset, FilesCache, LatestOrStr
 from registry import Registries
 from utils import LateInit
+
 
 class ModrinthAsset(Asset):
     """Downloads asset from modrinth"""
@@ -41,16 +44,16 @@ class ModrinthData(DownloadData):
     def create_cache(self) -> FilesCache:
         return ModrinthCache(files=self.files, version_id=self.version.id, version_number=self.version.version_number)
 
+
 class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]):
     def get_logger_name(self):
         return "Modrinth"
-    
+
     modrinth: LateInit[labrinth.Modrinth] = LateInit()
-    
+
     def setup(self, assets: AssetInstaller):
         super().setup(assets)
         self.modrinth = labrinth.Modrinth(assets.session)
-
 
     def get_version(self, assets: AssetInstaller, project: labrinth.Project, asset: ModrinthAsset):
         self.debug(f"Getting project versions..")
@@ -128,7 +131,9 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
             return UpdateStatus.OUTDATED
         return UpdateStatus.UP_TO_DATE
 
+
 KEY = "modrinth"
+
 
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, KEY, ModrinthProvider())

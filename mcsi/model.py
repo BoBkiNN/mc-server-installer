@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import json5
 import yaml
 from papermc_fill import Channel as PaperChannel
-from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
+from pydantic import (BaseModel, Field, ValidationError,
                       model_validator, RootModel, ConfigDict)
 from pydantic_core import core_schema, SchemaValidator
 from registry import *

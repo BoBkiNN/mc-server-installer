@@ -1,10 +1,13 @@
-from pydantic import HttpUrl
 from typing import Literal
-from model import Asset, FilesCache
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetInstaller, AssetProvider
+
 import requests
 import utils
+from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
+                  Environment, UpdateStatus)
+from model import Asset, FilesCache
+from pydantic import HttpUrl
 from registry import Registries
+
 
 class DirectUrlAsset(Asset):
     """Downloads asset from specified url"""
@@ -14,6 +17,7 @@ class DirectUrlAsset(Asset):
 
     def create_asset_id(self) -> str:
         return str(self.url)
+
 
 class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData]):
 
@@ -45,6 +49,7 @@ class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData])
 
 
 KEY = "url"
+
 
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, KEY, DirectUrlProvider())

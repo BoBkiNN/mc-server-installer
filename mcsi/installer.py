@@ -1,11 +1,13 @@
-from model import *
 from pathlib import Path
-from core import *
-from actions import ExpressionProcessor
+from typing import Sequence
+
 import papermc_fill as papermc
 import utils
+from actions import ExpressionProcessor
+from core import *
+from model import *
 from utils import millis
-from typing import Sequence
+
 
 class PluginsGroup(AssetsGroup):
     def get_folder(self, asset: Asset) -> Path:
@@ -55,6 +57,7 @@ class CustomsGroup(AssetsGroup):
     @property
     def unit_name(self) -> str:
         return "custom asset"
+
 
 class Installer:
     def __init__(self, manifest: Manifest, manifest_path: Path,

@@ -1,26 +1,22 @@
+import logging
 import os
 import sys
-
-from model import DummyAction, RenameFile, UnzipFile
-
 # Support vendored dependencies for zipapp builds
 VENDOR_PATH = os.path.join(os.path.dirname(__file__), "_vendor")
 if os.path.isdir(VENDOR_PATH) and VENDOR_PATH not in sys.path:
     sys.path.insert(0, VENDOR_PATH)
 
-
-import logging
-
 import click
 import colorlog
-
 from __version__ import __version__
-
-from model import *
-from core import Environment, Authorization, AssetProvider
-from actions import ActionHandler, DummyActionHandler, UnzipActionHandler, RenameActionHandler
-from regunion import make_registry_schema_generator
+from actions import (ActionHandler, DummyActionHandler, RenameActionHandler,
+                     UnzipActionHandler)
+from core import AssetProvider, Authorization, Environment
 from installer import Installer
+from model import *
+from model import DummyAction, RenameFile, UnzipFile
+from regunion import make_registry_schema_generator
+
 
 ROOT_REGISTRY = Registries()
 CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry(
@@ -39,16 +35,20 @@ ROOT_REGISTRY.create_registry("providers", AssetProvider)
 ACTIONS = ROOT_REGISTRY.create_model_registry("actions", BaseAction)
 ACTIONS.register_models(DummyAction, RenameFile, UnzipFile)
 
-ACTION_HANDLERS = ROOT_REGISTRY.create_registry("action_handlers", ActionHandler)
+ACTION_HANDLERS = ROOT_REGISTRY.create_registry(
+    "action_handlers", ActionHandler)
 ACTION_HANDLERS.register("dummy", DummyActionHandler())
 ACTION_HANDLERS.register("rename", RenameActionHandler())
 ACTION_HANDLERS.register("unzip", UnzipActionHandler())
 
+
 def load_providers(env: Environment):
-    from providers import direct_url, modrinth, github_provider, jenkins_provider
+    from providers import (direct_url, github_provider, jenkins_provider,
+                           modrinth)
     ls = [direct_url, modrinth, github_provider, jenkins_provider]
     for m in ls:
         m.setup(env.registries, env)
+
 
 def display_id_conflicts(logger: logging.Logger, ls: list[AssetConflict]):
     if not ls:
@@ -57,12 +57,14 @@ def display_id_conflicts(logger: logging.Logger, ls: list[AssetConflict]):
     logger.warning(
         f"Detected {len(ls)} asset_id conflict(s). Second asset will replace first:\n{t}")
 
+
 def display_registry_stats(logger: logging.Logger, reg: Registries):
     providers = reg.get_registry(AssetProvider)
     pls = []
     if providers:
         pls = [p for p in providers.keys()]
     logger.debug(f"Registered {len(pls)} providers: {pls}")
+
 
 LOG_FORMATTER = colorlog.ColoredFormatter(
     '%(log_color)s[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',
@@ -106,6 +108,7 @@ def select_manifest_path(entered: Path | None) -> Path | None:
                 return p
         return None
 
+
 @click.group()
 def main():
     """Minecraft Server Installer made by BoBkiNN"""
@@ -145,7 +148,7 @@ def main():
     default=DEFAULT_PROFILE,
     help="Server profile to use",
 )
-def install(manifest: Path | None, folder: Path, github_token: str | None, 
+def install(manifest: Path | None, folder: Path, github_token: str | None,
             debug: bool, profile: str):
     """Installs core and all assets by downloading them and executing actions"""
     setup_logging(debug)
@@ -174,6 +177,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None,
 
 # Update lifecycle:
 # Check cache -> check update -> if (new update) {invalidate cache -> download files -> do actions} -> store cache
+
 
 @main.command(help="Generate manifest schema")
 @click.option(
@@ -231,7 +235,7 @@ def schema(out: Path, pretty: bool):
     default=DEFAULT_PROFILE,
     help="Server profile to use",
 )
-def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | None, 
+def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | None,
            debug: bool, profile: str):
     """Checks cached assets for updates and installs new versions if dry mode disabled"""
     setup_logging(debug)
@@ -269,6 +273,7 @@ def dump(out: Path):
     env.registries.dump(d)
     out.write_text(json.dumps(d, indent=2), "utf-8")
     click.echo(f"Registries dumped to {out}")
+
 
 if __name__ == "__main__":
     main()

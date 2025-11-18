@@ -1,19 +1,22 @@
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+from zipfile import ZipFile
+
+import requests
+import utils
+from core import (AT, CT, DT, AssetInstaller, AssetProvider, AssetsGroup,
+                  DownloadData, Environment, UpdateStatus)
 from github import Auth, Github, UnknownObjectException
 from github.Artifact import Artifact
 from github.GitRelease import GitRelease
 from github.Repository import Repository
 from github.Workflow import Workflow
 from github.WorkflowRun import WorkflowRun
-from model import FileSelectorKey, FileSelectorUnion, FilesCache, Asset, LatestOrStr
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetProvider, AssetInstaller, AT, CT, DT
-from dataclasses import dataclass
-from typing import Literal
-import re
-from pathlib import Path
+from model import (Asset, FilesCache, FileSelectorKey, FileSelectorUnion,
+                   LatestOrStr)
 from registry import Registries
-import utils
-import requests
-from zipfile import ZipFile
 
 
 class GithubReleasesAsset(Asset):
@@ -58,6 +61,7 @@ class GithubActionsCache(FilesCache):
     run_id: int
     run_number: int
 
+
 @dataclass
 class GithubReleaseData(DownloadData):
     repo: Repository
@@ -90,7 +94,7 @@ class GithubLikeProvider(AssetProvider[AT, CT, DT]):
 
     def get_logger_name(self):
         return "Github"
-    
+
     def setup(self, assets: AssetInstaller):
         super().setup(assets)
         _user_agent: str | bytes = assets.session.headers["User-Agent"]
@@ -240,6 +244,9 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
 
 def setup(registries: Registries, env: Environment):
     registries.register_to(AssetProvider, "github", GithubReleasesProvider())
-    registries.register_to(AssetProvider, "github-actions", GithubActionsProvider())
-    registries.register_models_to(Asset, GithubActionsAsset, GithubReleasesAsset)
-    registries.register_models_to(FilesCache, GithubActionsCache, GithubReleaseCache)
+    registries.register_to(
+        AssetProvider, "github-actions", GithubActionsProvider())
+    registries.register_models_to(
+        Asset, GithubActionsAsset, GithubReleasesAsset)
+    registries.register_models_to(
+        FilesCache, GithubActionsCache, GithubReleaseCache)

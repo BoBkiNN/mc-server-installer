@@ -1,13 +1,16 @@
-from core import Environment, AssetsGroup, DownloadData
-from pathlib import Path
-from model import Expr, TemplateExpr, UnzipFile, BaseAction, RenameFile, DummyAction, Asset
-import os
 import logging
+import os
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Generic, TypeVar
+from zipfile import ZipFile
+
 from asteval import Interpreter
 from asteval.astutils import ExceptionHolder
-from zipfile import ZipFile
-from typing import Generic, Any, TypeVar
-from abc import ABC, abstractmethod
+from core import AssetsGroup, DownloadData, Environment
+from model import (Asset, BaseAction, DummyAction, Expr, RenameFile,
+                   TemplateExpr, UnzipFile)
+
 
 class ExpressionProcessor:
     def __init__(self, logger: logging.Logger, folder: Path, env: Environment) -> None:

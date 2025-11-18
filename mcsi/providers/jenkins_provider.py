@@ -1,11 +1,13 @@
-import providers.api.jenkins_models as jm
-import jenkins
-from model import FileSelectorKey, FileSelectorUnion, FilesCache, Asset
-from core import UpdateStatus, Environment, AssetsGroup, DownloadData, AssetProvider, AssetInstaller
 from dataclasses import dataclass
-from typing import Literal
-from pydantic import HttpUrl
 from pathlib import Path
+from typing import Literal
+
+import jenkins
+import providers.api.jenkins_models as jm
+from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
+                  Environment, UpdateStatus)
+from model import Asset, FilesCache, FileSelectorKey, FileSelectorUnion
+from pydantic import HttpUrl
 from registry import Registries
 
 
@@ -23,6 +25,7 @@ class JenkinsData(DownloadData):
     def create_cache(self) -> FilesCache:
         return JenkinsCache(files=self.files, build_number=self.build.number)
 
+
 class JenkinsAsset(Asset):
     version: Literal["latest"] | int
     url: HttpUrl
@@ -38,6 +41,7 @@ class JenkinsAsset(Asset):
 
     def is_latest(self) -> bool:
         return self.version == "latest"
+
 
 class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
 
