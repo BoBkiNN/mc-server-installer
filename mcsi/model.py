@@ -187,37 +187,6 @@ class Asset(ABC, TypedModel):
 
 LatestOrStr: TypeAlias = Literal["latest"] | str
 
-class GithubReleasesAsset(Asset):
-    """Downloads asset from github"""
-    version: LatestOrStr
-    repository: str
-    type: Literal["github"]
-    file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
-
-    def create_asset_id(self) -> str:
-        return self.repository
-    
-    def is_latest(self) -> bool:
-        return self.version == "latest"
-
-
-class GithubActionsAsset(Asset):
-    """Downloads artifact from github actions"""
-    version: int | Literal["latest"]
-    repository: str
-    branch: str = "master"
-    workflow: str
-    name_pattern: re.Pattern | None = None
-    """RegEx for artifact name. All artifacts is downloaded if not set"""
-    type: Literal["github-actions"]
-    file_selector: FileSelectorKey | FileSelectorUnion = "simple-jar"
-
-    def create_asset_id(self) -> str:
-        return self.repository+"/"+self.workflow+"@"+self.branch
-    
-    def is_latest(self) -> bool:
-        return self.version == "latest"
-
 class NoteAsset(Asset):
     """Asset that must manually be installed.<br>
     Logs a message after installation containing note"""
@@ -376,17 +345,6 @@ class FilesCache(BaseModel):
             if not path.is_file():
                 return False
         return True
-
-
-class GithubReleaseCache(FilesCache):
-    type: str = "github"
-    tag: str
-
-
-class GithubActionsCache(FilesCache):
-    type: str = "github-actions"
-    run_id: int
-    run_number: int
 
 
 @dataclass
