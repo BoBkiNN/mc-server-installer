@@ -96,7 +96,7 @@ There are 4 variables that is exposed in template expressions used in `actions` 
 
 # Installation and running
 There are 3 `.pyz` files in each release and you need to pick most closest to you:
-- `mcsi-ver.pyz`: A pure python archive, without any dependencies. Instead, all dependencies from [requirements.txt](mcsi/requirements.txt) must be installed
+- `mcsi-ver.pyz`: A pure python archive, without any dependencies. Instead, dependencies from [pyproject.toml](pyproject.toml) must be installed
 - `mcsi-ver-win.pyz`: A python archive that contains dependencies to work on Windows
 - `mcsi-ver-linux.pyz`: A python archive that contains dependencies to work on Linux-like systems (e.g Ubuntu or Debian)
 
