@@ -743,32 +743,7 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
         else:
             return UpdateStatus.UP_TO_DATE
 
-class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData]):
 
-    def get_logger_name(self):
-        return "DirectUrl"
-    
-    def download(self, assets: AssetInstaller, asset: DirectUrlAsset, group: AssetsGroup) -> DownloadData:
-        if asset.file_name:
-            name = asset.file_name
-        else:
-            path = asset.url.path
-            if not path:
-                name = asset.resolve_asset_id()
-            else:
-                name = path.split("/")[-1]
-        out = group.get_folder(asset) / name
-        try:
-            self.download_file(requests.Session(), str(asset.url), out)
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                raise utils.FriendlyException(
-                    f"File at {str(asset.url)} not found")
-            else: raise e
-        return DownloadData(files=[out], primary_file=out)
-    
-    def has_update(self, assets: AssetInstaller, asset: DirectUrlAsset, group: AssetsGroup, cached: FilesCache) -> UpdateStatus:
-        raise NotImplementedError
 
 
 class GithubLikeProvider(AssetProvider[AT, CT, DT]):
@@ -1278,13 +1253,11 @@ FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
 ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
-ASSETS.register_models(GithubReleasesAsset,
-                          DirectUrlAsset, GithubActionsAsset,
+ASSETS.register_models(GithubReleasesAsset, GithubActionsAsset,
                           JenkinsAsset, NoteAsset)
 
 PROVIDERS = ROOT_REGISTRY.create_registry("providers", AssetProvider)
 PROVIDERS.register("jenkins", JenkinsProvider())
-PROVIDERS.register("url", DirectUrlProvider())
 PROVIDERS.register("github", GithubReleasesProvider())
 PROVIDERS.register("github-actions", GithubActionsProvider())
 

@@ -219,15 +219,6 @@ class GithubActionsAsset(Asset):
         return self.version == "latest"
 
 
-class DirectUrlAsset(Asset):
-    """Downloads asset from specified url"""
-    url: HttpUrl
-    file_name: str | None = None
-    type: Literal["url"]
-
-    def create_asset_id(self) -> str:
-        return str(self.url)
-
 class JenkinsAsset(Asset):
     version: Literal["latest"] | int
     url: HttpUrl
