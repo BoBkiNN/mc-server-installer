@@ -156,6 +156,20 @@ class Registries(Registry[Registry]):
             raise KeyError(f"Unknown registry for type {registry}")
         return reg.get(key)
     
+    def register_to(self, registry: type[T], key: str, value: T):
+        reg = self.get_registry(registry)
+        if not reg:
+            raise KeyError(f"Unknown registry for type {registry}")
+        reg.register(key, value)
+    
+    def register_model_to(self, registry: type[M], *args: type[M], discriminator: str = "type"):
+        reg = self.get_registry(registry)
+        if not reg:
+            raise KeyError(f"Unknown registry for type {registry}")
+        if not isinstance(reg, ModelRegistry):
+            raise ValueError(f"Registry {reg} is not ModelRegistry")
+        reg.register_models(*args, discriminator=discriminator)
+    
     def dump_entry(self, entry: Registry) -> Any:
         d = {}
         entry.dump(d)

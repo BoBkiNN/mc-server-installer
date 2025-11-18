@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 import json5
 import yaml
-from labrinth import VersionType
 from papermc_fill import Channel as PaperChannel
 from pydantic import (BaseModel, Field, HttpUrl, ValidationError,
                       model_validator, RootModel, ConfigDict)
@@ -187,27 +186,6 @@ class Asset(ABC, TypedModel):
 
 
 LatestOrStr: TypeAlias = Literal["latest"] | str
-
-
-class ModrinthAsset(Asset):
-    """Downloads asset from modrinth"""
-    version: LatestOrStr
-    project_id: str
-    channel: VersionType | None = None
-    """If not set, then channel is ignored"""
-    version_is_id: bool = False
-    """If true, than version is consumed as version id"""
-    version_name_pattern: re.Pattern | None = None
-    """RegEx for version name"""
-    ignore_game_version: bool = False
-    type: Literal["modrinth"]
-
-    def create_asset_id(self):
-        return self.project_id
-    
-    def is_latest(self) -> bool:
-        return self.version == "latest"
-
 
 class GithubReleasesAsset(Asset):
     """Downloads asset from github"""
@@ -436,11 +414,6 @@ class GithubActionsCache(FilesCache):
     run_id: int
     run_number: int
 
-
-class ModrinthCache(FilesCache):
-    type: str = "modrinth"
-    version_id: str
-    version_number: str
 
 class JenkinsCache(FilesCache):
     type: str = "jenkins"
