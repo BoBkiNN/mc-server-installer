@@ -194,8 +194,10 @@ def install(manifest: Path | None, folder: Path, github_token: str | None,
 def schema(out: Path, pretty: bool):
     """Generates JSON schema for manifest and saves it"""
     click.echo(f"Generating schema to {out}")
+    env = Environment(Authorization(), DEFAULT_PROFILE, ROOT_REGISTRY, False)
+    load_providers(env)
     r = Manifest.model_json_schema(
-        schema_generator=make_registry_schema_generator(ROOT_REGISTRY))
+        schema_generator=make_registry_schema_generator(env.registries))
     out.write_text(json.dumps(r, indent=2 if pretty else None))
     click.echo("Done")
 
