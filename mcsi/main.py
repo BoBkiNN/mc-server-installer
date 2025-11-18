@@ -1388,6 +1388,13 @@ ACTION_HANDLERS.register("dummy", DummyActionHandler())
 ACTION_HANDLERS.register("rename", RenameActionHandler())
 ACTION_HANDLERS.register("unzip", UnzipActionHandler())
 
+def display_id_conflicts(logger: logging.Logger, ls: list[AssetConflict]):
+    if not ls:
+        return
+    t = "\n".join([f" - {c}" for c in ls])
+    logger.warning(
+        f"Detected {len(ls)} asset_id conflict(s). Second asset will replace first:\n{t}")
+
 LOG_FORMATTER = colorlog.ColoredFormatter(
     '%(log_color)s[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',
     datefmt='%H:%M:%S',
@@ -1480,7 +1487,8 @@ def install(manifest: Path | None, folder: Path, github_token: str | None,
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
-    mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    display_id_conflicts(logger, cls)
     env = Environment(auth, profile, ROOT_REGISTRY, debug)
     installer = Installer(mf, mfp, folder, env, logger)
     installer.logger.info(f"✅ Using manifest {mfp} with profile {profile!r}")
@@ -1563,7 +1571,8 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
-    mf = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    display_id_conflicts(logger, cls)
     env = Environment(auth, profile, ROOT_REGISTRY, debug)
     installer = Installer(mf, mfp, folder, env, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")

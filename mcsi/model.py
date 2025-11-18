@@ -177,6 +177,13 @@ class Asset(ABC, TypedModel):
             return sel.model_validate({"type": self.file_selector})
         else:
             return self.file_selector
+    
+    def dump_short(self):
+        d = self.model_dump(exclude_defaults=True, exclude={"asset_id", "type"})
+        f = [f"{n}={v!r}" for n, v in d.items()]
+        t = ", ".join(f)
+        id = self.resolve_asset_id()
+        return f"{id}[{t}]"
 
 
 LatestOrStr: TypeAlias = Literal["latest"] | str
@@ -325,6 +332,16 @@ class ManifestMeta(BaseModel):
     link: str = ""
     """Link to server project page or author page"""
 
+@dataclass
+class AssetConflict:
+    old: tuple[Asset, str]
+    new: tuple[Asset, str]
+
+    def __str__(self) -> str:
+        od = self.old[0].dump_short()
+        nd = self.new[0].dump_short()
+        return f"{self.old[1]} {od} and {self.new[1]} {nd}"
+
 class Manifest(BaseModel):
     version: str = __version__
     meta: ManifestMeta
@@ -342,19 +359,30 @@ class Manifest(BaseModel):
 
     _assets: dict[str, tuple[Asset, str]] = {}
 
+    def _resolve_asset(self, asset: Asset, group: str) -> AssetConflict | None:
+        id = asset.resolve_asset_id()
+        old = self._assets.get(id)
+        n = (asset, group)
+        self._assets[id] = n
+        if old:
+            return AssetConflict(old, n)
+        return None
+
     def resolve_assets(self):
+        conflicts: list[AssetConflict] = []
         for a in self.mods:
-            id = a.resolve_asset_id()
-            self._assets[id] = (a, "mod")
+            if (c := self._resolve_asset(a, "mod")) is not None:
+                conflicts.append(c)
         for a in self.plugins:
-            id = a.resolve_asset_id()
-            self._assets[id] = (a, "plugin")
+            if (c := self._resolve_asset(a, "plugin")) is not None:
+                conflicts.append(c)
         for a in self.datapacks:
-            id = a.resolve_asset_id()
-            self._assets[id] = (a, "datapack")
+            if (c := self._resolve_asset(a, "datapack")) is not None:
+                conflicts.append(c)
         for a in self.customs:
-            id = a.resolve_asset_id()
-            self._assets[id] = (a, "custom")
+            if (c := self._resolve_asset(a, "custom")) is not None:
+                conflicts.append(c)
+        return conflicts
 
     def get_asset(self, id: str):
         pair = self._assets.get(id, None)
@@ -363,7 +391,7 @@ class Manifest(BaseModel):
         return pair[0]
 
     @staticmethod
-    def load(file: Path, registries: "Registries", logger: logging.Logger) -> "Manifest":
+    def load(file: Path, registries: "Registries", logger: logging.Logger) -> "tuple[Manifest, list[AssetConflict]]":
         ext = file.name.split(".")[-1]
         d: dict[str, Any]
         with open(file, "r", encoding="utf-8") as f:
@@ -381,8 +409,8 @@ class Manifest(BaseModel):
             m = Manifest.model_validate(d, context={REGISTRIES_CONTEXT_KEY: registries})
         except ValidationError as e:
             raise ValueError("Failed to load manifest") from e
-        m.resolve_assets()
-        return m
+        cls = m.resolve_assets()
+        return m, cls
 
 
 class FilesCache(BaseModel):

@@ -151,6 +151,5 @@ Planned features and improvements for this project:
 - Better way of passing authorization data and using it in assets
 - Provide example manifest
 - Hangar support
-- Check all assets ids for uniqueness
 - asset configurations with YML/JSON/TOML support
 - Split system and providers
