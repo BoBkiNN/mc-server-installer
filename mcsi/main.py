@@ -57,6 +57,13 @@ def display_id_conflicts(logger: logging.Logger, ls: list[AssetConflict]):
     logger.warning(
         f"Detected {len(ls)} asset_id conflict(s). Second asset will replace first:\n{t}")
 
+def display_registry_stats(logger: logging.Logger, reg: Registries):
+    providers = reg.get_registry(AssetProvider)
+    pls = []
+    if providers:
+        pls = [p for p in providers.keys()]
+    logger.debug(f"Registered {len(pls)} providers: {pls}")
+
 LOG_FORMATTER = colorlog.ColoredFormatter(
     '%(log_color)s[%(asctime)s][%(name)s/%(levelname)s]: %(message)s',
     datefmt='%H:%M:%S',
@@ -149,10 +156,11 @@ def install(manifest: Path | None, folder: Path, github_token: str | None,
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
-    mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
-    display_id_conflicts(logger, cls)
     env = Environment(auth, profile, ROOT_REGISTRY, debug)
     load_providers(env)
+    display_registry_stats(logger, env.registries)
+    mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    display_id_conflicts(logger, cls)
     installer = Installer(mf, mfp, folder, env, logger)
     installer.logger.info(f"✅ Using manifest {mfp} with profile {profile!r}")
     installer.prepare(True)
@@ -234,10 +242,11 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
-    mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
-    display_id_conflicts(logger, cls)
     env = Environment(auth, profile, ROOT_REGISTRY, debug)
     load_providers(env)
+    display_registry_stats(logger, env.registries)
+    mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
+    display_id_conflicts(logger, cls)
     installer = Installer(mf, mfp, folder, env, logger)
     installer.logger.info(f"✅ Using manifest {mfp}")
     installer.prepare(False)
