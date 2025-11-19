@@ -346,7 +346,7 @@ class CacheStore:
         self.cache.core = core
         self.dirty = True
 
-    def check_core(self, core: CoreManifest, mc_ver: str):
+    def check_core(self, core: CoreManifest):
         cached = self.cache.core
         if not cached:
             return None

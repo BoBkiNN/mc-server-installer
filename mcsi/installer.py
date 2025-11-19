@@ -105,7 +105,7 @@ class Installer:
 
     def install_core(self):
         core = self.manifest.core
-        cache = self.cache.check_core(core, self.manifest.mc_version)
+        cache = self.cache.check_core(core)
         if cache:
             self.logger.info(f"⏩ Skipping core as it already installed")
             return cache
@@ -369,7 +369,7 @@ class Installer:
 
     def update_core(self, dry: bool):
         core = self.manifest.core
-        cached = self.cache.check_core(core, self.manifest.mc_version)
+        cached = self.cache.check_core(core)
         if not cached:
             return
         if core.is_latest() is None:
