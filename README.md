@@ -154,3 +154,4 @@ Planned features and improvements for this project:
 - asset configurations with YML/JSON/TOML support
 - concurrent installing and update checking
 - resolve asset dependencies
+- store data version in manifest and cache for later migration support
