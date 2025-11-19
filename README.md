@@ -147,7 +147,6 @@ Now, once you have attached a schema, you can use IDE suggestions to fill you ma
 
 # TODO
 Planned features and improvements for this project:
-- Improve and structurize core installation logic
 - Better way of passing authorization data and using it in assets
 - Provide example manifest
 - Hangar support
