@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Sequence
 
-import papermc_fill as papermc
 import utils
 from actions import ExpressionProcessor
 from core import *
@@ -104,58 +103,20 @@ class Installer:
         self.assets.clear_temp()
         self.session.close()
 
-    def get_paper_build(self, api: papermc.PaperMcFill, core: PaperCoreManifest, mc: str):
-        build: papermc.Build | None
-        if core.build == PaperLatestBuild.LATEST:
-            build = api.get_latest_build("paper", mc)
-        elif core.build == PaperLatestBuild.LATEST_STABLE:
-            builds = api.get_builds("paper", mc)
-            if builds == None:
-                build = None
-            else:
-                build = next((b for b in builds if b.channel ==
-                             PaperChannel.STABLE), None)
-        elif core.channels:
-            builds = api.get_builds("paper", mc)
-            if builds == None:
-                build = None
-            else:
-                build = next(
-                    (b for b in builds if b.channel in core.channels), None)
-        else:
-            build = api.get_build("paper", mc, core.build)
-        if build is None:
-            raise ValueError(
-                f"Failed to find paper build {core.build} for MC {mc}")
-        return build
-
-    def install_paper_core(self, core: PaperCoreManifest):
-        api = papermc.PaperMcFill(self.session)
-        mc = self.manifest.mc_version
-        build = self.get_paper_build(api, core, mc)
-        download = build.get_default_download()
-        jar_name = core.file_name if core.file_name else download.name
-        out = self.folder / jar_name
-        self.assets.download_file(api.session, str(download.url), out)
-        hash = core.stable_hash()
-        return PaperCoreCache(files=[Path(jar_name)], build_number=build.id,
-                              core_hash=hash,
-                              update_time=millis(), type="paper")
-
     def install_core(self):
         core = self.manifest.core
         cache = self.cache.check_core(core, self.manifest.mc_version)
         if cache:
             self.logger.info(f"⏩ Skipping core as it already installed")
             return cache
+        core_type = core.get_type()
+        core_provider: CoreProvider[CoreManifest, CoreCache] | None = self.registries.get_entry(CoreProvider, core_type)
+        if not core_provider:
+            raise ValueError(f"Unknown core provider {core_type!r}")
         self.logger.info(f"🔄 Downloading core {core.display_name()}..")
-        i: CoreCacheUnion
-        if isinstance(core, PaperCoreManifest):
-            i = self.install_paper_core(core)
-        else:
-            raise ValueError("Unsupported core")
-        self.logger.info(f"✅ Installed core {i.display_name()}")
-        self.cache.store_core(i)
+        cache = core_provider.download(self.assets, core)
+        self.logger.info(f"✅ Installed core {cache.display_name()}")
+        self.cache.store_core(cache)
 
     def download_asset(self, asset: Asset, group: AssetsGroup):
         provider = self.registries.get_entry(AssetProvider, asset.get_type())
@@ -402,28 +363,30 @@ class Installer:
 
     def update_core(self, dry: bool):
         core = self.manifest.core
-        cache = self.cache.check_core(core, self.manifest.mc_version)
-        if not cache:
+        cached = self.cache.check_core(core, self.manifest.mc_version)
+        if not cached:
             return
         if core.is_latest() is None:
             self.logger.debug(
                 f"Skipping core update checking as it has fixed version")
             return
         self.logger.info("🔁 Checking core for updates")
-        new_update: int | None = None
-        if isinstance(cache, PaperCoreCache) and isinstance(core, PaperCoreManifest):
-            api = papermc.PaperMcFill(self.session)
-            mc = self.manifest.mc_version
-            build = self.get_paper_build(api, core, mc)
-            bn = cache.build_number
-            if bn < build.id:
-                new_update = build.id
-        else:
-            raise ValueError("Unknown core cache to update from")
-        if not new_update:
+        core_type = core.get_type()
+        core_provider = self.registries.get_entry(CoreProvider, core_type)
+        if not core_provider:
+            raise ValueError(f"Unknown core provider {core_type!r}")
+        status: UpdateStatus
+        new_ver: str
+        try:
+            status, new_ver = core_provider.has_update(self.assets, core, cached)
+        except Exception as e:
+            self.logger.error(f"Failed to check {core_type!r} core for updates", exc_info=e)
+            return
+        if status == UpdateStatus.UP_TO_DATE or status == UpdateStatus.AHEAD:
             self.logger.info("No new core updates")
             return
-        self.logger.info(f"💠 Found new core update: #{new_update}")
+        old_ver = cached.version_name()
+        self.logger.info(f"💠 Found new core update: {old_ver} -> {new_ver}")
         if dry:
             self.logger.info(f"Dry mode enabled, not installing core update")
             return

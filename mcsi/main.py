@@ -11,7 +11,7 @@ import colorlog
 from __version__ import __version__
 from actions import (ActionHandler, DummyActionHandler, RenameActionHandler,
                      UnzipActionHandler)
-from core import AssetProvider, Authorization, Environment
+from core import AssetProvider, Authorization, Environment, CoreProvider
 from installer import Installer
 from model import *
 from model import DummyAction, RenameFile, UnzipFile
@@ -33,6 +33,7 @@ ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
 ASSETS.register_models(NoteAsset)
 
 ROOT_REGISTRY.create_registry("providers", AssetProvider)
+ROOT_REGISTRY.create_registry("core_providers", CoreProvider)
 
 ACTIONS = ROOT_REGISTRY.create_model_registry("actions", BaseAction)
 ACTIONS.register_models(DummyAction, RenameFile, UnzipFile)
@@ -43,16 +44,13 @@ ACTION_HANDLERS.register("dummy", DummyActionHandler())
 ACTION_HANDLERS.register("rename", RenameActionHandler())
 ACTION_HANDLERS.register("unzip", UnzipActionHandler())
 
-CORES_REGISTRY = ROOT_REGISTRY.create_model_registry("cores", CoreManifest)
-CORES_REGISTRY.register_models(PaperCoreManifest)
-
-CORE_CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry("core_caches", CoreCache)
-CORE_CACHES_REGISTRY.register_models(PaperCoreCache)
+ROOT_REGISTRY.create_model_registry("cores", CoreManifest)
+ROOT_REGISTRY.create_model_registry("core_caches", CoreCache)
 
 def load_providers(env: Environment):
     from providers import (direct_url, github_provider, jenkins_provider,
-                           modrinth)
-    ls = [direct_url, modrinth, github_provider, jenkins_provider]
+                           modrinth, paper)
+    ls = [direct_url, modrinth, github_provider, jenkins_provider, paper]
     for m in ls:
         m.setup(env.registries, env)
 
@@ -166,7 +164,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None,
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
-    env = Environment(auth, profile, ROOT_REGISTRY, debug)
+    env = Environment(auth, profile, ROOT_REGISTRY, debug, folder)
     load_providers(env)
     display_registry_stats(logger, env.registries)
     mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
@@ -201,7 +199,7 @@ def install(manifest: Path | None, folder: Path, github_token: str | None,
 def schema(out: Path, pretty: bool):
     """Generates JSON schema for manifest and saves it"""
     click.echo(f"Generating schema to {out}")
-    env = Environment(Authorization(), DEFAULT_PROFILE, ROOT_REGISTRY, False)
+    env = Environment(Authorization(), DEFAULT_PROFILE, ROOT_REGISTRY, False, Path())
     load_providers(env)
     r = Manifest.model_json_schema(
         schema_generator=make_registry_schema_generator(env.registries))
@@ -255,7 +253,7 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
     logger = logging.getLogger("Installer")
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     auth = Authorization(github=github_token)
-    env = Environment(auth, profile, ROOT_REGISTRY, debug)
+    env = Environment(auth, profile, ROOT_REGISTRY, debug, folder)
     load_providers(env)
     display_registry_stats(logger, env.registries)
     mf, cls = Manifest.load(mfp, ROOT_REGISTRY, logger)
@@ -277,7 +275,7 @@ def update(manifest: Path | None, folder: Path, dry: bool, github_token: str | N
 )
 def dump(out: Path):
     d = {}
-    env = Environment(Authorization(), DEFAULT_PROFILE, ROOT_REGISTRY, False)
+    env = Environment(Authorization(), DEFAULT_PROFILE, ROOT_REGISTRY, False, Path())
     load_providers(env)
     env.registries.dump(d)
     out.write_text(json.dumps(d, indent=2), "utf-8")

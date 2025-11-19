@@ -32,6 +32,7 @@ class Environment:
     profile: str
     registries: Registries
     debug: bool
+    folder: Path
 
 
 class AssetsGroup(ABC):
@@ -213,6 +214,18 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
                    group: AssetsGroup, cached: CT) -> UpdateStatus:
         raise NotImplementedError
 
+
+CORE = TypeVar("CORE", bound=CoreManifest)
+CORE_CACHE = TypeVar("CORE_CACHE", bound=CoreCache)
+
+class CoreProvider(ABC, Generic[CORE, CORE_CACHE]):
+    @abstractmethod
+    def download(self, assets: AssetInstaller, core: CORE) -> CORE_CACHE:
+        ...
+    
+    @abstractmethod
+    def has_update(self, assets: AssetInstaller, core: CORE, cached: CORE_CACHE) -> tuple[UpdateStatus, str]:
+        ...
 
 class CacheStore:
     def __init__(self, file: Path, mf: Manifest, env: "Environment", folder: Path) -> None:

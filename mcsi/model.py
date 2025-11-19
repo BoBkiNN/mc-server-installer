@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 import json5
 import yaml
-from papermc_fill import Channel as PaperChannel
 from pydantic import (BaseModel, Field, ValidationError,
                       model_validator, RootModel, ConfigDict)
 from pydantic_core import core_schema, SchemaValidator
@@ -212,28 +211,6 @@ class CoreManifest(ABC, TypedModel):
         ...
 
 
-class PaperLatestBuild(Enum):
-    LATEST = "latest"
-    LATEST_STABLE = "latest_stable"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-class PaperCoreManifest(CoreManifest):
-    type: Literal["paper"]
-    build: PaperLatestBuild | int
-    channels: list[PaperChannel] = []
-    """Channels to use when finding latest version. Empty means channel will be ignored"""
-
-    def display_name(self) -> str:
-        sf = "@"+str(self.channels) if self.channels else ""
-        return f"paper/{self.build}"+sf
-    
-    def is_latest(self) -> bool:
-        return isinstance(self.build, PaperLatestBuild)
-
-
 CoreUnion: TypeAlias = Annotated[CoreManifest, RegistryUnion(
     "cores"), Field(title="Core")]
 
@@ -394,15 +371,10 @@ class CoreCache(ABC, BaseFilesCache, TypedModel):
     @abstractmethod
     def display_name(self) -> str:
         ...
-
-
-class PaperCoreCache(CoreCache):
-    build_number: int
-    type: Literal["paper"]
-
-    def display_name(self) -> str:
-        return f"paper-{self.build_number}"
-
+    
+    @abstractmethod
+    def version_name(self) -> str:
+        ...
 
 CoreCacheUnion: TypeAlias = Annotated[CoreCache, RegistryUnion(
     "core_caches"), Field(title="CoreCache")]
