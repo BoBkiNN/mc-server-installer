@@ -43,6 +43,17 @@
             "cwd": "${workspaceFolder}/run"
         },
         {
+            "name": "Dump registries",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "../mcsi/main.py",
+            "args": [
+                "dump"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/run"
+        },
+        {
             "name": "Generate schema",
             "type": "debugpy",
             "request": "launch",
