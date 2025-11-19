@@ -329,7 +329,7 @@ class CacheStore:
             self.dirty = True
             self.logger.info("⚠  Core invalidated")
 
-    def store_core(self, core: CoreCache):
+    def store_core(self, core: CoreCacheUnion):
         self.cache.core = core
         self.dirty = True
 
@@ -337,20 +337,21 @@ class CacheStore:
         cached = self.cache.core
         if not cached:
             return None
-        if not cached.data.check_files(self.folder):
+        if not cached.check_files(self.folder):
             self.logger.debug("Invalidating core due to invalid files")
             self.invalidate_core()
             return None
-        if cached.type != core.type:
+        cached_type = cached.get_type()
+        if cached_type != core.type:
             self.logger.debug(
-                f"Invalidating core due to changed type {cached.type} -> {core.type}")
+                f"Invalidating core due to changed type {cached_type} -> {core.type}")
             self.invalidate_core()
             return None
-        vhash = core.hash_from_ver(mc_ver)
-        if vhash is not None and cached.version_hash != vhash:
-            # hash is provided and not matching
+        core_hash = core.stable_hash()
+        if core_hash != cached.core_hash:
+            # hash not matching
             self.logger.debug(
-                f"Invalidating core due to changed version hash {cached.version_hash} -> {vhash}")
+                f"Invalidating core due to changed declaration {cached.core_hash} -> {core_hash}")
             self.invalidate_core()
             return None
         return cached

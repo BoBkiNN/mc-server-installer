@@ -129,7 +129,7 @@ class Installer:
                 f"Failed to find paper build {core.build} for MC {mc}")
         return build
 
-    def install_paper_core(self, core: PaperCoreManifest) -> CoreCache:
+    def install_paper_core(self, core: PaperCoreManifest):
         api = papermc.PaperMcFill(self.session)
         mc = self.manifest.mc_version
         build = self.get_paper_build(api, core, mc)
@@ -137,9 +137,10 @@ class Installer:
         jar_name = core.file_name if core.file_name else download.name
         out = self.folder / jar_name
         self.assets.download_file(api.session, str(download.url), out)
-        vhash = hashlib.sha256(f"{mc}/{build.id}".encode()).hexdigest()
-        data = PaperCoreCache(files=[Path(jar_name)], build_number=build.id)
-        return CoreCache(update_time=millis(), data=data, version_hash=vhash, type="paper")
+        hash = core.stable_hash()
+        return PaperCoreCache(files=[Path(jar_name)], build_number=build.id,
+                              core_hash=hash,
+                              update_time=millis(), type="paper")
 
     def install_core(self):
         core = self.manifest.core
@@ -148,7 +149,7 @@ class Installer:
             self.logger.info(f"⏩ Skipping core as it already installed")
             return cache
         self.logger.info(f"🔄 Downloading core {core.display_name()}..")
-        i: CoreCache
+        i: CoreCacheUnion
         if isinstance(core, PaperCoreManifest):
             i = self.install_paper_core(core)
         else:
@@ -404,13 +405,17 @@ class Installer:
         cache = self.cache.check_core(core, self.manifest.mc_version)
         if not cache:
             return
-        self.logger.info("💠 Checking core for updates")
+        if core.is_latest() is None:
+            self.logger.debug(
+                f"Skipping core update checking as it has fixed version")
+            return
+        self.logger.info("🔁 Checking core for updates")
         new_update: int | None = None
-        if isinstance(cache.data, PaperCoreCache):
+        if isinstance(cache, PaperCoreCache):
             api = papermc.PaperMcFill(self.session)
             mc = self.manifest.mc_version
             build = self.get_paper_build(api, core, mc)
-            bn = cache.data.build_number
+            bn = cache.build_number
             if bn < build.id:
                 new_update = build.id
         else:

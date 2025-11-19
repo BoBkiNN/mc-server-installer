@@ -197,14 +197,18 @@ class NoteAsset(Asset):
         hash = hashlib.sha256(self.note.encode("utf-8")).hexdigest()
         return f"note-{hash[:7]}"
 
-class CoreManifest(BaseModel):
+class CoreManifest(ABC, TypedModel):
     file_name: str | None = None
     """Renames downloaded jar to this file name"""
 
     def display_name(self) -> str:
         ...
-
-    def hash_from_ver(self, mc_ver: str) -> str | None:
+    
+    def stable_hash(self) -> str:
+        s = self.model_dump_json()
+        return hashlib.sha256(s.encode()).hexdigest()
+    
+    def is_latest(self) -> bool:
         ...
 
 
@@ -222,14 +226,12 @@ class PaperCoreManifest(CoreManifest):
     channels: list[PaperChannel] = []
     """Channels to use when finding latest version. Empty means channel will be ignored"""
 
-    def hash_from_ver(self, mc_ver: str) -> str | None:
-        if not isinstance(self.build, int):
-            return None  # we dont know version if manifest is set to latest
-        return hashlib.sha256(f"{mc_ver}/{self.build}".encode()).hexdigest()
-
     def display_name(self) -> str:
         sf = "@"+str(self.channels) if self.channels else ""
         return f"paper/{self.build}"+sf
+    
+    def is_latest(self) -> bool:
+        return isinstance(self.build, PaperLatestBuild)
 
 
 Core = Annotated[
@@ -334,9 +336,8 @@ class Manifest(BaseModel):
         return m, cls
 
 
-class FilesCache(BaseModel):
+class BaseFilesCache(BaseModel):
     files: list[Path]
-    type: str = "files"
     """List of files after downloading and installation (no temporary files)"""
 
     def check_files(self, folder: Path):
@@ -345,6 +346,10 @@ class FilesCache(BaseModel):
             if not path.is_file():
                 return False
         return True
+
+
+class FilesCache(BaseFilesCache):
+    type: str = "files"
 
 
 @dataclass
@@ -383,23 +388,29 @@ class AssetCache(BaseModel):
         return AssetCache(asset_id=asset_id, asset_hash=hash, update_time=update_time, data=cache)
 
 
-class CoreCache(BaseModel):
+class CoreCache(ABC, BaseFilesCache, TypedModel):
+    core_hash: str
+    """Hash of core declaration"""
     update_time: int
-    data: Annotated[FilesCache, RegistryUnion("asset_cache")]
-    version_hash: str  # used for latest checking
-    type: str
+    files: list[Path]
 
+    @abstractmethod
     def display_name(self) -> str:
-        if hasattr(self.data, "display_name"):
-            return getattr(self.data, "display_name")()
-        return f"{self.type}-({self.version_hash})"
+        ...
 
-class PaperCoreCache(FilesCache):
+
+class PaperCoreCache(CoreCache):
     build_number: int
-    type: str = "core/paper"
+    type: Literal["paper"]
 
     def display_name(self) -> str:
         return f"paper-{self.build_number}"
+
+
+CoreCacheUnion = Annotated[
+    Union[PaperCoreCache],
+    Field(discriminator="type"),
+] # TODO store into registry
 
 DEFAULT_PROFILE = "default"
 
@@ -409,7 +420,7 @@ class Cache(BaseModel):
     mc_version: str
     profile: str = DEFAULT_PROFILE
     assets: dict[str, AssetCache] = {}
-    core: CoreCache | None = None
+    core: CoreCacheUnion | None = None
 
     @model_validator(mode="after")
     def make_server_folder_absolute(self) -> "Cache":
