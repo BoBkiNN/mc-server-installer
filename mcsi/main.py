@@ -12,6 +12,7 @@ from __version__ import __version__
 from actions import (ActionHandler, DummyActionHandler, RenameActionHandler,
                      UnzipActionHandler)
 from core import AssetProvider, Authorization, Environment, CoreProvider
+from common_registries import CommonRegistries as CR
 from installer import Installer
 from model import *
 from model import DummyAction, RenameFile, UnzipFile
@@ -20,32 +21,32 @@ from regunion import make_registry_schema_generator
 
 ROOT_REGISTRY = Registries()
 
-CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry(
-    "asset_cache", FilesCache)
+CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry(CR.Asset.CACHE, 
+                                                      FilesCache)
 CACHES_REGISTRY.register_models(FilesCache)
 
 FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
-    "file_selectors", FileSelector)
+    CR.FILE_SELECTOR, FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
 
-ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
+ASSETS = ROOT_REGISTRY.create_model_registry(CR.Asset.MODEL, Asset)
 ASSETS.register_models(NoteAsset)
 
-ROOT_REGISTRY.create_registry("providers", AssetProvider)
-ROOT_REGISTRY.create_registry("core_providers", CoreProvider)
+ROOT_REGISTRY.create_registry(CR.Asset.PROVIDER, AssetProvider)
+ROOT_REGISTRY.create_registry(CR.Core.PROVIDER, CoreProvider)
 
-ACTIONS = ROOT_REGISTRY.create_model_registry("actions", BaseAction)
+ACTIONS = ROOT_REGISTRY.create_model_registry(CR.Action.MODEL, BaseAction)
 ACTIONS.register_models(DummyAction, RenameFile, UnzipFile)
 
 ACTION_HANDLERS = ROOT_REGISTRY.create_registry(
-    "action_handlers", ActionHandler)
+    CR.Action.HANDLER, ActionHandler)
 ACTION_HANDLERS.register("dummy", DummyActionHandler())
 ACTION_HANDLERS.register("rename", RenameActionHandler())
 ACTION_HANDLERS.register("unzip", UnzipActionHandler())
 
-ROOT_REGISTRY.create_model_registry("cores", CoreManifest)
-ROOT_REGISTRY.create_model_registry("core_caches", CoreCache)
+ROOT_REGISTRY.create_model_registry(CR.Core.MODEL, CoreManifest)
+ROOT_REGISTRY.create_model_registry(CR.Core.CACHE, CoreCache)
 
 def load_providers(env: Environment):
     from providers import (direct_url, github_provider, jenkins_provider,

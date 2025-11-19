@@ -17,6 +17,7 @@ import re
 import utils
 from __version__ import __version__
 import logging
+from common_registries import CommonRegistries as CR
 
 class FileSelector(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -55,9 +56,9 @@ class RegexFileSelector(FileSelector):
 
 
 FileSelectorKey: TypeAlias = Annotated[str, RegistryKey(
-    "file_selectors"), Field(title="FileSelectorKey")]
+    CR.FILE_SELECTOR), Field(title="FileSelectorKey")]
 FileSelectorUnion: TypeAlias = Annotated[FileSelector, RegistryUnion(
-    "file_selectors"), Field(title="FileSelectorUnion")]
+    CR.FILE_SELECTOR), Field(title="FileSelectorUnion")]
 
 
 class Expr(str):
@@ -113,8 +114,8 @@ class UnzipFile(BaseAction):
     """Target folder. If not set, then folder where downloaded file is used"""
 
 
-ActionUnion: TypeAlias = Annotated[BaseAction, RegistryUnion(
-    "actions"), Field(title="ActionUnion")]
+ActionUnion: TypeAlias = Annotated[BaseAction, RegistryUnion(CR.Action.MODEL), 
+                                   Field(title="ActionUnion")]
 
 class Asset(ABC, TypedModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -211,11 +212,11 @@ class CoreManifest(ABC, TypedModel):
         ...
 
 
-CoreUnion: TypeAlias = Annotated[CoreManifest, RegistryUnion(
-    "cores"), Field(title="Core")]
+CoreUnion: TypeAlias = Annotated[CoreManifest, RegistryUnion(CR.Core.MODEL), 
+                                 Field(title="Core")]
 
-AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(
-    "assets"), Field(title="Asset")]
+AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(CR.Asset.MODEL), 
+                                  Field(title="Asset")]
 
 class ManifestMeta(BaseModel):
     """Information about this manifest"""
@@ -346,7 +347,7 @@ class AssetCache(BaseModel):
     asset_id: str
     asset_hash: str
     update_time: int
-    data: Annotated[FilesCache, RegistryUnion("asset_cache")]
+    data: Annotated[FilesCache, RegistryUnion(CR.Asset.CACHE)]
 
     def is_valid(self, folder: Path, hash: str | None):
         if hash is None:  # asset removed from manifest
@@ -377,7 +378,7 @@ class CoreCache(ABC, BaseFilesCache, TypedModel):
         ...
 
 CoreCacheUnion: TypeAlias = Annotated[CoreCache, RegistryUnion(
-    "core_caches"), Field(title="CoreCache")]
+    CR.Core.CACHE), Field(title="CoreCache")]
 
 DEFAULT_PROFILE = "default"
 
