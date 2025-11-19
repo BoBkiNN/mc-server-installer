@@ -12,7 +12,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "main.py",
+            "name": "Install server",
             "type": "debugpy",
             "request": "launch",
             "program": "../mcsi/main.py",
@@ -22,6 +22,22 @@
                 "manifest.json5",
                 "--folder",
                 "."
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/run"
+        },
+        {
+            "name": "Update server (dry)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "../mcsi/main.py",
+            "args": [
+                "update",
+                "--manifest",
+                "manifest.json5",
+                "--folder",
+                ".",
+                "--dry"
             ],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/run"
