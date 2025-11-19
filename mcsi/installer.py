@@ -175,6 +175,7 @@ class Installer:
                 exprs = ExpressionProcessor(logger, self.folder, self.env)
                 v = exprs.eval_if(ak+".if", if_code)
                 if v is False:
+                    self.logger.debug(f"Skipping asset {asset_id!r} because its condition computed to False")
                     return False
             return True
         return [a for a in ls if filter_asset(a)]
