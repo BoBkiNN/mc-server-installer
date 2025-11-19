@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import jenkins
 import providers.api.jenkins_models as jm
@@ -26,8 +26,10 @@ class JenkinsData(DownloadData):
         return JenkinsCache(files=self.files, build_number=self.build.number)
 
 
+LatestOrInt: TypeAlias = int | Literal["latest"]
+
 class JenkinsAsset(Asset):
-    version: Literal["latest"] | int
+    version: LatestOrInt
     url: HttpUrl
     """URL to Jenkins instance"""
     job: str

@@ -23,6 +23,7 @@
                 "--folder",
                 "."
             ],
+            "justMyCode": false,
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/run"
         },

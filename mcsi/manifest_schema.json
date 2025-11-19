@@ -14,6 +14,45 @@
       "title": "AllFilesSelector",
       "type": "object"
     },
+    "BungeeCordCore": {
+      "properties": {
+        "file_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Name"
+        },
+        "type": {
+          "const": "bungeecord",
+          "title": "Type",
+          "type": "string"
+        },
+        "build": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "const": "latest",
+              "type": "string"
+            }
+          ],
+          "title": "Build"
+        }
+      },
+      "required": [
+        "type",
+        "build"
+      ],
+      "title": "BungeeCordCore",
+      "type": "object"
+    },
     "Channel": {
       "enum": [
         "ALPHA",
@@ -30,11 +69,11 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "$ref": "#/$defs/RegistryKey__file_selector",
               "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "$ref": "#/$defs/RegistryUnion__file_selector",
               "title": "FileSelectorUnion"
             }
           ],
@@ -64,7 +103,7 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "$ref": "#/$defs/RegistryUnion__actions",
+            "$ref": "#/$defs/RegistryUnion__action_model",
             "title": "ActionUnion"
           },
           "title": "Actions",
@@ -157,11 +196,11 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "$ref": "#/$defs/RegistryKey__file_selector",
               "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "$ref": "#/$defs/RegistryUnion__file_selector",
               "title": "FileSelectorUnion"
             }
           ],
@@ -190,7 +229,7 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "$ref": "#/$defs/RegistryUnion__actions",
+            "$ref": "#/$defs/RegistryUnion__action_model",
             "title": "ActionUnion"
           },
           "title": "Actions",
@@ -276,11 +315,11 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "$ref": "#/$defs/RegistryKey__file_selector",
               "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "$ref": "#/$defs/RegistryUnion__file_selector",
               "title": "FileSelectorUnion"
             }
           ],
@@ -309,7 +348,7 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "$ref": "#/$defs/RegistryUnion__actions",
+            "$ref": "#/$defs/RegistryUnion__action_model",
             "title": "ActionUnion"
           },
           "title": "Actions",
@@ -370,11 +409,11 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "$ref": "#/$defs/RegistryKey__file_selector",
               "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "$ref": "#/$defs/RegistryUnion__file_selector",
               "title": "FileSelectorUnion"
             }
           ],
@@ -403,7 +442,7 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "$ref": "#/$defs/RegistryUnion__actions",
+            "$ref": "#/$defs/RegistryUnion__action_model",
             "title": "ActionUnion"
           },
           "title": "Actions",
@@ -432,11 +471,11 @@
         "version": {
           "anyOf": [
             {
-              "const": "latest",
-              "type": "string"
+              "type": "integer"
             },
             {
-              "type": "integer"
+              "const": "latest",
+              "type": "string"
             }
           ],
           "title": "Version"
@@ -508,11 +547,11 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "$ref": "#/$defs/RegistryKey__file_selector",
               "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "$ref": "#/$defs/RegistryUnion__file_selector",
               "title": "FileSelectorUnion"
             }
           ],
@@ -542,7 +581,7 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "$ref": "#/$defs/RegistryUnion__actions",
+            "$ref": "#/$defs/RegistryUnion__action_model",
             "title": "ActionUnion"
           },
           "title": "Actions",
@@ -641,11 +680,11 @@
         "file_selector": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RegistryKey__file_selectors",
+              "$ref": "#/$defs/RegistryKey__file_selector",
               "title": "FileSelectorKey"
             },
             {
-              "$ref": "#/$defs/RegistryUnion__file_selectors",
+              "$ref": "#/$defs/RegistryUnion__file_selector",
               "title": "FileSelectorUnion"
             }
           ],
@@ -675,7 +714,7 @@
           "default": [],
           "description": "List of actions to execute after download",
           "items": {
-            "$ref": "#/$defs/RegistryUnion__actions",
+            "$ref": "#/$defs/RegistryUnion__action_model",
             "title": "ActionUnion"
           },
           "title": "Actions",
@@ -808,7 +847,7 @@
       "title": "RegexFileSelector",
       "type": "object"
     },
-    "RegistryKey__file_selectors": {
+    "RegistryKey__file_selector": {
       "enum": [
         "all",
         "simple-jar",
@@ -816,7 +855,7 @@
       ],
       "type": "string"
     },
-    "RegistryUnion__actions": {
+    "RegistryUnion__action_model": {
       "discriminator": {
         "mapping": {
           "dummy": "#/$defs/DummyAction",
@@ -837,7 +876,7 @@
         }
       ]
     },
-    "RegistryUnion__assets": {
+    "RegistryUnion__asset_model": {
       "discriminator": {
         "mapping": {
           "github": "#/$defs/GithubReleasesAsset",
@@ -870,9 +909,10 @@
         }
       ]
     },
-    "RegistryUnion__cores": {
+    "RegistryUnion__core_model": {
       "discriminator": {
         "mapping": {
+          "bungeecord": "#/$defs/BungeeCordCore",
           "paper": "#/$defs/PaperCoreManifest"
         },
         "propertyName": "type"
@@ -880,10 +920,13 @@
       "oneOf": [
         {
           "$ref": "#/$defs/PaperCoreManifest"
+        },
+        {
+          "$ref": "#/$defs/BungeeCordCore"
         }
       ]
     },
-    "RegistryUnion__file_selectors": {
+    "RegistryUnion__file_selector": {
       "discriminator": {
         "mapping": {
           "all": "#/$defs/AllFilesSelector",
@@ -1004,13 +1047,13 @@
       "type": "string"
     },
     "core": {
-      "$ref": "#/$defs/RegistryUnion__cores",
+      "$ref": "#/$defs/RegistryUnion__core_model",
       "title": "Core"
     },
     "mods": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets",
+        "$ref": "#/$defs/RegistryUnion__asset_model",
         "title": "Asset"
       },
       "title": "Mods",
@@ -1019,7 +1062,7 @@
     "plugins": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets",
+        "$ref": "#/$defs/RegistryUnion__asset_model",
         "title": "Asset"
       },
       "title": "Plugins",
@@ -1028,7 +1071,7 @@
     "datapacks": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets",
+        "$ref": "#/$defs/RegistryUnion__asset_model",
         "title": "Asset"
       },
       "title": "Datapacks",
@@ -1037,7 +1080,7 @@
     "customs": {
       "default": [],
       "items": {
-        "$ref": "#/$defs/RegistryUnion__assets",
+        "$ref": "#/$defs/RegistryUnion__asset_model",
         "title": "Asset"
       },
       "title": "Customs",
