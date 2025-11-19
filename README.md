@@ -155,3 +155,4 @@ Planned features and improvements for this project:
 - concurrent installing and update checking
 - resolve asset dependencies
 - store data version in manifest and cache for later migration support
+- rename registries to something like action/model action/handler
