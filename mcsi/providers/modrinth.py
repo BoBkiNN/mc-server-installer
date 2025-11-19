@@ -4,7 +4,7 @@ from typing import Literal
 
 import providers.api.labrinth as labrinth
 from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
-                  Environment, UpdateStatus)
+                  Environment, UpdateStatus, UpdateData)
 from model import Asset, FilesCache, LatestOrStr
 from registry import Registries
 from utils import LateInit
@@ -119,7 +119,7 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
     def supports_update_checking(self) -> bool:
         return True
 
-    def has_update(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup, cached: ModrinthCache) -> UpdateStatus:
+    def has_update(self, assets: AssetInstaller, asset: ModrinthAsset, group: AssetsGroup, cached: ModrinthCache) -> UpdateData:
         self.debug(f"Getting project {asset.project_id}")
         project = self.modrinth.get_project(asset.project_id)
         if not project:
@@ -128,8 +128,8 @@ class ModrinthProvider(AssetProvider[ModrinthAsset, ModrinthCache, ModrinthData]
         self.logger.info(f"Found version {ver.name!r} ({ver.version_number})")
         # maybe semver when possible?
         if cached.version_id != ver.id:
-            return UpdateStatus.OUTDATED
-        return UpdateStatus.UP_TO_DATE
+            return UpdateStatus.OUTDATED.ver(ver.version_number)
+        return UpdateStatus.UP_TO_DATE.ver(ver.version_number)
 
 
 KEY = "modrinth"

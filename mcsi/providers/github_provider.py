@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import requests
 import utils
 from core import (AT, CT, DT, AssetInstaller, AssetProvider, AssetsGroup,
-                  DownloadData, Environment, UpdateStatus)
+                  DownloadData, Environment, UpdateStatus, UpdateData)
 from github import Auth, Github, UnknownObjectException
 from github.Artifact import Artifact
 from github.GitRelease import GitRelease
@@ -161,15 +161,15 @@ class GithubReleasesProvider(GithubLikeProvider[GithubReleasesAsset, GithubRelea
     def supports_update_checking(self) -> bool:
         return True
 
-    def has_update(self, assets: AssetInstaller, asset: GithubReleasesAsset, group: AssetsGroup, cached: GithubReleaseCache) -> UpdateStatus:
+    def has_update(self, assets: AssetInstaller, asset: GithubReleasesAsset, group: AssetsGroup, cached: GithubReleaseCache) -> UpdateData:
         self.debug(f"Getting repository {asset.repository}")
         repo = self.get_repo(assets, asset.repository)
         release: GitRelease = self.get_release(repo, asset.version)
         self.info(f"Found release {release.name!r}")
         if release.tag_name != cached.tag:
-            return UpdateStatus.OUTDATED
+            return UpdateStatus.OUTDATED.ver(release.tag_name)
         else:
-            return UpdateStatus.UP_TO_DATE
+            return UpdateStatus.UP_TO_DATE.ver(release.tag_name)
 
 
 class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActionsCache, GithubActionsData]):
@@ -229,17 +229,18 @@ class GithubActionsProvider(GithubLikeProvider[GithubActionsAsset, GithubActions
     def supports_update_checking(self) -> bool:
         return True
 
-    def has_update(self, assets: AssetInstaller, asset: GithubActionsAsset, group: AssetsGroup, cached: GithubActionsCache) -> UpdateStatus:
+    def has_update(self, assets: AssetInstaller, asset: GithubActionsAsset, group: AssetsGroup, cached: GithubActionsCache) -> UpdateData:
         repo = self.get_repo(assets, asset.repository)
         workflow = repo.get_workflow(asset.workflow)
         run = self.get_run(workflow, asset)
         self.info(f"Found run '{run.name}#{run.run_number}'")
+        srn = f"#{run.run_number}"
         if cached.run_number > run.run_number:
-            return UpdateStatus.AHEAD
+            return UpdateStatus.AHEAD.ver(srn)
         elif cached.run_number < run.run_number:
-            return UpdateStatus.OUTDATED
+            return UpdateStatus.OUTDATED.ver(srn)
         else:
-            return UpdateStatus.UP_TO_DATE
+            return UpdateStatus.UP_TO_DATE.ver(srn)
 
 
 def setup(registries: Registries, env: Environment):

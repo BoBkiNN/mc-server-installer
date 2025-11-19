@@ -3,7 +3,7 @@ from typing import Literal
 import requests
 import utils
 from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
-                  Environment, UpdateStatus)
+                  Environment, UpdateData)
 from model import Asset, FilesCache
 from pydantic import HttpUrl
 from registry import Registries
@@ -44,7 +44,7 @@ class DirectUrlProvider(AssetProvider[DirectUrlAsset, FilesCache, DownloadData])
                 raise e
         return DownloadData(files=[out], primary_file=out)
 
-    def has_update(self, assets: AssetInstaller, asset: DirectUrlAsset, group: AssetsGroup, cached: FilesCache) -> UpdateStatus:
+    def has_update(self, assets: AssetInstaller, asset: DirectUrlAsset, group: AssetsGroup, cached: FilesCache) -> UpdateData:
         raise NotImplementedError
 
 

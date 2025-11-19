@@ -254,7 +254,7 @@ class Installer:
             entry_name = g.unit_name
             self.logger.info(f"🚩 {entry_name.capitalize()}: {v}")
 
-    def check_update(self, asset: Asset, group: AssetsGroup, cached: AssetCache) -> UpdateStatus:
+    def check_update(self, asset: Asset, group: AssetsGroup, cached: AssetCache) -> UpdateData:
         key = asset.get_type()
         provider = self.registries.get_entry(AssetProvider, key)
         if not provider:
@@ -291,12 +291,13 @@ class Installer:
         if not cached:
             return UpdateResult.SKIPPED
         self.logger.info(f"🔁 Checking {asset_id} for updates")
-        status = self.check_update(asset, group, cached)
+        data = self.check_update(asset, group, cached)
+        status = data.status
         if status != UpdateStatus.OUTDATED:
             self.logger.info(f"💠 No new updates for {asset_id}")
             return UpdateResult.UP_TO_DATE
         self.logger.info(
-            f"💠 New update found for {group.unit_name} {asset_id}")
+            f"💠 New update found for {group.unit_name} {asset_id}: {data.remote_ver}")
         if asset.is_latest() is False:  # fixed version
             self.logger.debug(
                 f"Skipping {group.unit_name} {asset_id} as it has fixed version")
@@ -386,7 +387,9 @@ class Installer:
         status: UpdateStatus
         new_ver: str
         try:
-            status, new_ver = core_provider.has_update(self.assets, core, cached)
+            data = core_provider.has_update(self.assets, core, cached)
+            status = data.status
+            new_ver = data.remote_ver
         except Exception as e:
             self.logger.error(f"Failed to check {core_type!r} core for updates", exc_info=e)
             return

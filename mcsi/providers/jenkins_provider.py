@@ -5,7 +5,7 @@ from typing import Literal
 import jenkins
 import providers.api.jenkins_models as jm
 from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
-                  Environment, UpdateStatus)
+                  Environment, UpdateStatus, UpdateData)
 from model import Asset, FilesCache, FileSelectorKey, FileSelectorUnion
 from pydantic import HttpUrl
 from registry import Registries
@@ -102,19 +102,20 @@ class JenkinsProvider(AssetProvider[JenkinsAsset, JenkinsCache, JenkinsData]):
     def supports_update_checking(self):
         return True
 
-    def has_update(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup, cached: JenkinsCache) -> UpdateStatus:
+    def has_update(self, assets: AssetInstaller, asset: JenkinsAsset, group: AssetsGroup, cached: JenkinsCache) -> UpdateData:
         j = jenkins.Jenkins(str(asset.url))
         job = jm.Job.get_job(j, asset.job)
         if not job:
             raise ValueError(f"Unknown job {asset.job}")
         build: jm.Build = self.get_build(j, job, asset)
         self.info(f"Found build {build.fullDisplayName}")
+        sbn = f"#{build.number}"
         if cached.build_number > build.number:
-            return UpdateStatus.AHEAD
+            return UpdateStatus.AHEAD.ver(sbn)
         elif cached.build_number < build.number:
-            return UpdateStatus.OUTDATED
+            return UpdateStatus.OUTDATED.ver(sbn)
         else:
-            return UpdateStatus.UP_TO_DATE
+            return UpdateStatus.UP_TO_DATE.ver(sbn)
 
 
 KEY = "jenkins"

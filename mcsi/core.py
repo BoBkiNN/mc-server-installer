@@ -21,6 +21,9 @@ class UpdateStatus(Enum):
     AHEAD = False
     OUTDATED = True
 
+    def ver(self, ver: str):
+        return UpdateData(self, ver)
+
 
 class Authorization(BaseModel):
     github: str | None = None
@@ -196,6 +199,11 @@ class CommonProvider:
     def debug(self, msg: object):
         self.logger.debug(msg)
 
+@dataclass
+class UpdateData:
+    status: UpdateStatus
+    remote_ver: str
+
 AT = TypeVar("AT", bound=Asset)
 CT = TypeVar("CT", bound=FilesCache)
 DT = TypeVar("DT", bound=DownloadData)
@@ -210,10 +218,9 @@ class AssetProvider(ABC, Generic[AT, CT, DT], CommonProvider):
     def supports_update_checking(self) -> bool:
         return False
 
-    # TODO return new version name for logging
     @abstractmethod
     def has_update(self, assets: AssetInstaller, asset: AT,
-                   group: AssetsGroup, cached: CT) -> UpdateStatus:
+                   group: AssetsGroup, cached: CT) -> UpdateData:
         raise NotImplementedError
 
 
@@ -226,7 +233,7 @@ class CoreProvider(ABC, Generic[CORE, CORE_CACHE], CommonProvider):
         ...
     
     @abstractmethod
-    def has_update(self, assets: AssetInstaller, core: CORE, cached: CORE_CACHE) -> tuple[UpdateStatus, str]:
+    def has_update(self, assets: AssetInstaller, core: CORE, cached: CORE_CACHE) -> UpdateData:
         ...
 
 class CacheStore:

@@ -1,4 +1,4 @@
-from core import AssetInstaller, UpdateStatus, CoreProvider, Environment
+from core import AssetInstaller, UpdateData, UpdateStatus, CoreProvider, Environment
 from model import CoreCache, CoreManifest
 import providers.api.papermc_fill as papermc
 from registry import Registries
@@ -79,17 +79,17 @@ class PaperCoreProvider(CoreProvider[PaperCoreManifest, PaperCoreCache]):
                               core_hash=hash,
                               update_time=millis(), type="paper")
     
-    def has_update(self, assets: AssetInstaller, core: PaperCoreManifest, cached: PaperCoreCache) -> tuple[UpdateStatus, str]:
+    def has_update(self, assets: AssetInstaller, core: PaperCoreManifest, cached: PaperCoreCache) -> UpdateData:
         api = papermc.PaperMcFill(assets.session)
         build = self.get_paper_build(api, core, assets.game_version)
         cb = cached.build_number
         ab = build.id
         if cb < ab:
-            return UpdateStatus.OUTDATED, f"#{ab}"
+            return UpdateStatus.OUTDATED.ver(f"#{ab}")
         elif cb > ab:
-            return UpdateStatus.AHEAD, f"#{cb}"
+            return UpdateStatus.AHEAD.ver(f"#{cb}")
         else:
-            return UpdateStatus.UP_TO_DATE, f"#{cb}"
+            return UpdateStatus.UP_TO_DATE.ver(f"#{cb}")
 
 
 def setup(registries: Registries, env: Environment):
