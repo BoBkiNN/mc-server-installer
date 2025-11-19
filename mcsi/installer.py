@@ -315,7 +315,7 @@ class Installer:
 
     def update_list(self, assets: Sequence[Asset], group: AssetsGroup, dry: bool):
         filtered: list[Asset] = []
-        for asset in assets:
+        for asset in self.prepare_asset_list(assets, group):
             asset_id = asset.resolve_asset_id()
             if not asset.caching:
                 self.logger.debug(
@@ -325,6 +325,12 @@ class Installer:
                 self.logger.debug(
                     f"Skipping asset {asset_id} as it has fixed version")
             filtered.append(asset)
+        if len(filtered) == 0 and len(assets) == 0:
+            return
+        fd = len(assets) - len(filtered)
+        if fd > 0:
+            self.logger.info(f"No update checking for {group.unit_name}(s) required: filtered {fd} asset(s)")
+            return
         self.logger.info(
             f"💠 Checking updates for {len(filtered)} {group.unit_name}(s)")
         results: dict[str, UpdateResult] = {}
