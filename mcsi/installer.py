@@ -316,7 +316,7 @@ class Installer:
 
     def update_list(self, assets: Sequence[Asset], group: AssetsGroup, dry: bool):
         filtered: list[Asset] = []
-        for asset in self.prepare_asset_list(assets, group):
+        for asset in self.prepare_asset_list(assets, group): # TODO combine this into single method
             asset_id = asset.resolve_asset_id()
             if not asset.caching:
                 self.logger.debug(
