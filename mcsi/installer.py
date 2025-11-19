@@ -329,7 +329,7 @@ class Installer:
         if len(filtered) == 0 and len(assets) == 0:
             return
         fd = len(assets) - len(filtered)
-        if fd > 0:
+        if len(assets) == 0 and fd > 0:
             self.logger.info(f"No update checking for {group.unit_name}(s) required: filtered {fd} asset(s)")
             return
         self.logger.info(
