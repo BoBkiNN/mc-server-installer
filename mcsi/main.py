@@ -19,14 +19,16 @@ from regunion import make_registry_schema_generator
 
 
 ROOT_REGISTRY = Registries()
+
 CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry(
     "asset_cache", FilesCache)
-CACHES_REGISTRY.register_models(FilesCache,
-                                PaperCoreCache)
+CACHES_REGISTRY.register_models(FilesCache)
+
 FILE_SELECTORS = ROOT_REGISTRY.create_model_registry(
     "file_selectors", FileSelector)
 FILE_SELECTORS.register_models(AllFilesSelector, SimpleJarSelector,
                                RegexFileSelector)
+
 ASSETS = ROOT_REGISTRY.create_model_registry("assets", Asset)
 ASSETS.register_models(NoteAsset)
 
@@ -41,6 +43,11 @@ ACTION_HANDLERS.register("dummy", DummyActionHandler())
 ACTION_HANDLERS.register("rename", RenameActionHandler())
 ACTION_HANDLERS.register("unzip", UnzipActionHandler())
 
+CORES_REGISTRY = ROOT_REGISTRY.create_model_registry("cores", CoreManifest)
+CORES_REGISTRY.register_models(PaperCoreManifest)
+
+CORE_CACHES_REGISTRY = ROOT_REGISTRY.create_model_registry("core_caches", CoreCache)
+CORE_CACHES_REGISTRY.register_models(PaperCoreCache)
 
 def load_providers(env: Environment):
     from providers import (direct_url, github_provider, jenkins_provider,

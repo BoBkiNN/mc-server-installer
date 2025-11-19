@@ -329,11 +329,11 @@ class CacheStore:
             self.dirty = True
             self.logger.info("⚠  Core invalidated")
 
-    def store_core(self, core: CoreCacheUnion):
+    def store_core(self, core: CoreCache):
         self.cache.core = core
         self.dirty = True
 
-    def check_core(self, core: Core, mc_ver: str):
+    def check_core(self, core: CoreManifest, mc_ver: str):
         cached = self.cache.core
         if not cached:
             return None
@@ -342,9 +342,10 @@ class CacheStore:
             self.invalidate_core()
             return None
         cached_type = cached.get_type()
-        if cached_type != core.type:
+        core_type = core.get_type()
+        if cached_type != core_type:
             self.logger.debug(
-                f"Invalidating core due to changed type {cached_type} -> {core.type}")
+                f"Invalidating core due to changed type {cached_type} -> {core_type}")
             self.invalidate_core()
             return None
         core_hash = core.stable_hash()

@@ -234,10 +234,8 @@ class PaperCoreManifest(CoreManifest):
         return isinstance(self.build, PaperLatestBuild)
 
 
-Core = Annotated[
-    Union[PaperCoreManifest],
-    Field(discriminator="type"),
-]
+CoreUnion: TypeAlias = Annotated[CoreManifest, RegistryUnion(
+    "cores"), Field(title="Core")]
 
 AssetUnion: TypeAlias = Annotated[Asset, RegistryUnion(
     "assets"), Field(title="Asset")]
@@ -269,7 +267,7 @@ class Manifest(BaseModel):
     version: str = __version__
     meta: ManifestMeta
     mc_version: str
-    core: Core
+    core: CoreUnion
 
     mods: list[AssetUnion] = []
     plugins: list[AssetUnion] = []
@@ -392,7 +390,6 @@ class CoreCache(ABC, BaseFilesCache, TypedModel):
     core_hash: str
     """Hash of core declaration"""
     update_time: int
-    files: list[Path]
 
     @abstractmethod
     def display_name(self) -> str:
@@ -407,10 +404,8 @@ class PaperCoreCache(CoreCache):
         return f"paper-{self.build_number}"
 
 
-CoreCacheUnion = Annotated[
-    Union[PaperCoreCache],
-    Field(discriminator="type"),
-] # TODO store into registry
+CoreCacheUnion: TypeAlias = Annotated[CoreCache, RegistryUnion(
+    "core_caches"), Field(title="CoreCache")]
 
 DEFAULT_PROFILE = "default"
 

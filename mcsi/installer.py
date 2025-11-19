@@ -411,7 +411,7 @@ class Installer:
             return
         self.logger.info("🔁 Checking core for updates")
         new_update: int | None = None
-        if isinstance(cache, PaperCoreCache):
+        if isinstance(cache, PaperCoreCache) and isinstance(core, PaperCoreManifest):
             api = papermc.PaperMcFill(self.session)
             mc = self.manifest.mc_version
             build = self.get_paper_build(api, core, mc)

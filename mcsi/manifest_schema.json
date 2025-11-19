@@ -870,6 +870,19 @@
         }
       ]
     },
+    "RegistryUnion__cores": {
+      "discriminator": {
+        "mapping": {
+          "paper": "#/$defs/PaperCoreManifest"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PaperCoreManifest"
+        }
+      ]
+    },
     "RegistryUnion__file_selectors": {
       "discriminator": {
         "mapping": {
@@ -991,17 +1004,7 @@
       "type": "string"
     },
     "core": {
-      "discriminator": {
-        "mapping": {
-          "paper": "#/$defs/PaperCoreManifest"
-        },
-        "propertyName": "type"
-      },
-      "oneOf": [
-        {
-          "$ref": "#/$defs/PaperCoreManifest"
-        }
-      ],
+      "$ref": "#/$defs/RegistryUnion__cores",
       "title": "Core"
     },
     "mods": {
