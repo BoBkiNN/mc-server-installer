@@ -80,18 +80,19 @@ class Installer:
         self.install_notes: dict[str, tuple[str, AssetsGroup]] = {}
         """Dict of asset id to note. Printed at installation finish"""
 
-    def setup_providers(self):
-        reg = self.registries.get_registry(AssetProvider)
+    def setup_providers(self, t: type[CommonProvider]):
+        reg = self.registries.get_registry(t)
         if reg is None:
-            raise ValueError("Registry providers is not set!")
+            raise KeyError(f"Unknown registry for entry type {t}")
         for k, v in reg.all().items():
             try:
                 v.setup(self.assets)
             except Exception as e:
-                raise ValueError(f"Failed to setup provider {k!r}") from e
+                raise RuntimeError(f"Failed to setup provider {k!r}") from e
 
     def prepare(self, validate: bool):
-        self.setup_providers()
+        self.setup_providers(AssetProvider)
+        self.setup_providers(CoreProvider)
         self.cache.load()
         if validate:
             self.cache.check_all_assets(self.manifest)

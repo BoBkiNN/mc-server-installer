@@ -152,12 +152,7 @@ class AssetInstaller:
         bar.close()
 
 
-AT = TypeVar("AT", bound=Asset)
-CT = TypeVar("CT", bound=FilesCache)
-DT = TypeVar("DT", bound=DownloadData)
-
-
-class AssetProvider(ABC, Generic[AT, CT, DT]):
+class CommonProvider:
     _logger: logging.Logger | None = None
     debug_enabled: LateInit[bool] = LateInit()
 
@@ -194,12 +189,19 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
                     f.write(chunk)
                     bar.update(len(chunk))
         bar.close()
-
+    
     def info(self, msg: object):
         self.logger.info(msg)
 
     def debug(self, msg: object):
         self.logger.debug(msg)
+
+AT = TypeVar("AT", bound=Asset)
+CT = TypeVar("CT", bound=FilesCache)
+DT = TypeVar("DT", bound=DownloadData)
+
+
+class AssetProvider(ABC, Generic[AT, CT, DT], CommonProvider):
 
     @abstractmethod
     def download(self, assets: AssetInstaller, asset: AT, group: AssetsGroup) -> DT:
@@ -218,7 +220,7 @@ class AssetProvider(ABC, Generic[AT, CT, DT]):
 CORE = TypeVar("CORE", bound=CoreManifest)
 CORE_CACHE = TypeVar("CORE_CACHE", bound=CoreCache)
 
-class CoreProvider(ABC, Generic[CORE, CORE_CACHE]):
+class CoreProvider(ABC, Generic[CORE, CORE_CACHE], CommonProvider):
     @abstractmethod
     def download(self, assets: AssetInstaller, core: CORE) -> CORE_CACHE:
         ...
