@@ -294,7 +294,7 @@ class Installer:
         data = self.check_update(asset, group, cached)
         status = data.status
         if status != UpdateStatus.OUTDATED:
-            self.logger.info(f"💠 No new updates for {asset_id}")
+            self.logger.info(f"No new updates for {asset_id}")
             return UpdateResult.UP_TO_DATE
         self.logger.info(
             f"💠 New update found for {group.unit_name} {asset_id}: {data.remote_ver}")
