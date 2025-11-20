@@ -811,6 +811,50 @@
       "title": "PaperLatestBuild",
       "type": "string"
     },
+    "PurpurCore": {
+      "properties": {
+        "file_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Name"
+        },
+        "type": {
+          "const": "purpur",
+          "title": "Type",
+          "type": "string"
+        },
+        "build": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "const": "latest",
+              "type": "string"
+            }
+          ],
+          "title": "Build"
+        },
+        "allow_experimental": {
+          "default": false,
+          "title": "Allow Experimental",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "build"
+      ],
+      "title": "PurpurCore",
+      "type": "object"
+    },
     "RegexFileSelector": {
       "description": "Uses RegEx pattern to filter files",
       "properties": {
@@ -913,7 +957,8 @@
       "discriminator": {
         "mapping": {
           "bungeecord": "#/$defs/BungeeCordCore",
-          "paper": "#/$defs/PaperCoreManifest"
+          "paper": "#/$defs/PaperCoreManifest",
+          "purpur": "#/$defs/PurpurCore"
         },
         "propertyName": "type"
       },
@@ -923,6 +968,9 @@
         },
         {
           "$ref": "#/$defs/BungeeCordCore"
+        },
+        {
+          "$ref": "#/$defs/PurpurCore"
         }
       ]
     },

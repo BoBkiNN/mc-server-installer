@@ -50,8 +50,9 @@ ROOT_REGISTRY.create_model_registry(CR.Core.CACHE, CoreCache)
 
 def load_providers(env: Environment):
     from providers import (direct_url, github_provider, jenkins_provider,
-                           modrinth, paper, bungeecord)
-    ls = [direct_url, modrinth, github_provider, jenkins_provider, paper, bungeecord]
+                           modrinth, paper, bungeecord, purpur)
+    ls = [direct_url, modrinth, github_provider, jenkins_provider, paper, 
+          bungeecord, purpur]
     for m in ls:
         m.setup(env.registries, env)
 
