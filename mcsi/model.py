@@ -186,6 +186,7 @@ class Asset(ABC, TypedModel):
 
 
 LatestOrStr: TypeAlias = Literal["latest"] | str
+LatestOrInt: TypeAlias = int | Literal["latest"]
 
 class NoteAsset(Asset):
     """Asset that must manually be installed.<br>

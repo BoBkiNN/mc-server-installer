@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import jenkins
 import providers.api.jenkins_models as jm
 from core import (AssetInstaller, AssetProvider, AssetsGroup, DownloadData,
                   Environment, UpdateStatus, UpdateData)
-from model import Asset, FilesCache, FileSelectorKey, FileSelectorUnion
+from model import Asset, FilesCache, FileSelectorKey, FileSelectorUnion, LatestOrInt
 from pydantic import HttpUrl
 from registry import Registries
 
@@ -25,8 +25,6 @@ class JenkinsData(DownloadData):
     def create_cache(self) -> FilesCache:
         return JenkinsCache(files=self.files, build_number=self.build.number)
 
-
-LatestOrInt: TypeAlias = int | Literal["latest"]
 
 class JenkinsAsset(Asset):
     version: LatestOrInt
