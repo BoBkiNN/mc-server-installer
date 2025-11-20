@@ -1,6 +1,6 @@
 [project]
 name = "mcsi"
-version = "2.2.1-dev"
+version = "2.3.0-dev"
 description = "Minecraft server installer based on manifest files"
 authors = [
     {name = "BoBkiNN",email = "78136575+BoBkiNN@users.noreply.github.com"}
