@@ -97,15 +97,8 @@ class GithubLikeProvider(AssetProvider[AT, CT, DT]):
 
     def setup(self, assets: AssetInstaller):
         super().setup(assets)
-        _user_agent: str | bytes = assets.session.headers["User-Agent"]
-        if isinstance(_user_agent, bytes):
-            user_agent = _user_agent.decode("utf-8")
-        elif isinstance(_user_agent, str):
-            user_agent = _user_agent
-        else:
-            raise ValueError("Unknown user-agent")
         self.github = Github(auth=Auth.Token(assets.auth.github)
-                             if assets.auth.github else None, user_agent=user_agent)
+                             if assets.auth.github else None, user_agent=assets.user_agent)
 
     def get_repo(self, assets: AssetInstaller, name: str):
         if name in self.repo_cache:

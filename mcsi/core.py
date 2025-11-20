@@ -113,6 +113,16 @@ class AssetInstaller:
 
     def debug(self, msg: object):
         self.logger.debug(msg)
+    
+    @property
+    def user_agent(self):
+        ua: str | bytes = self.session.headers["User-Agent"]
+        if isinstance(ua, bytes):
+            return ua.decode("utf-8")
+        elif isinstance(ua, str):
+            return ua
+        else:
+            raise ValueError("Unknown user-agent")
 
     def get_temp_file(self):
         self.temp_folder.mkdir(parents=True, exist_ok=True)
