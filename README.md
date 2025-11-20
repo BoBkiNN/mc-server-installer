@@ -155,3 +155,4 @@ Planned features and improvements for this project:
 - resolve asset dependencies
 - store data version in manifest and cache for later migration support
 - list supported providers in readme
+- discover providers instead manual additional, provider entrypoints
